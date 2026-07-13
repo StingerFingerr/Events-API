@@ -1,8 +1,6 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿namespace Events_API.DTOs.Events;
 
-namespace Events_API.DTOs.Events;
-
-public class EventUpdateDto : CreateEventDto
+public record EventUpdateDto : CreateEventDto
 {
-    [Required] public int Id { get; set; }  
+    
 }

@@ -1,6 +1,6 @@
-﻿using System.Net;
+﻿using Events_API.Consts;
+using Events_API.DTOs;
 using Events_API.DTOs.Events;
-using Events_API.DTOs.Results;
 using Events_API.Models;
 
 namespace Events_API.Services;
@@ -20,29 +20,40 @@ public class EventService : IEventService
         [
             new Event()
             {
-                Id = NewEventId, Title = "event 1", StartAt = DateTime.Now + new TimeSpan(7, 0, 0),
-                EndAt = DateTime.Now + new TimeSpan(14, 0, 0)
+                Id = NewEventId, Title = "event 1", 
+                StartAt = DateTime.Now.AddDays(1),
+                EndAt = DateTime.Now.AddDays(2)
             },
             new Event()
             {
-                Id = NewEventId, Title = "event 2", StartAt = DateTime.Now + new TimeSpan(4, 0, 0),
-                EndAt = DateTime.Now + new TimeSpan(10, 0, 0)
+                Id = NewEventId, Title = "event 2", 
+                StartAt = DateTime.Now.AddDays(5),
+                EndAt = DateTime.Now.AddDays(7)
             },
             new Event()
             {
-                Id = NewEventId, Title = "event 3", StartAt = DateTime.Now + new TimeSpan(15, 0, 0),
-                EndAt = DateTime.Now + new TimeSpan(20, 0, 0)
+                Id = NewEventId, Title = "event 3", 
+                StartAt = DateTime.Now.AddDays(14),
+                EndAt = DateTime.Now.AddDays(15)
             },
         ];
     }
-
-
-    public async Task<ApiBaseResult> CreateEventAsync(CreateEventDto eventData)
+    
+    public async Task<EventDto?> GetEventByIdAsync(int id)
     {
-        if (ValidateEventDto(eventData, out var eventAsync)) 
-            return eventAsync;
-        if(EventExistsByTitle(eventData.Title))
-            return ApiResult.Failed("event with the same name already exists.");
+        var eventFound = Events.FirstOrDefault(e => e.Id == id);
+        if (eventFound is null)
+            return null;
+        return eventFound.AsDto();
+    }
+
+
+    public async Task<Result<EventDto>> CreateEventAsync(CreateEventDto eventData)
+    {
+        if (ValidateEventDto(eventData, out var errorMessage)) 
+            return Result<EventDto>.Failure(errorMessage);
+        if (EventExistsByTitle(eventData.Title))
+            return Result<EventDto>.Failure(ErrorsMessages.EventAlreadyExists);
         
         var newEvent = new Event()
         {
@@ -54,58 +65,43 @@ public class EventService : IEventService
 
         Events.Add(newEvent);
 
-        return new ApiResult<EventDto>()
-        {
-            Success = true,
-            Message = string.Empty,
-            StatusCode = HttpStatusCode.Created,
-            Data = newEvent.AsDto()
-        };
+        return Result<EventDto>.Success(newEvent.AsDto());
     }
 
-    public async Task<ApiBaseResult> GetEventByIdAsync(int id)
+    public async Task<List<EventDto>> GetAllEventsAsync()
     {
+        return Events.Select(e => e.AsDto()).ToList();
+    }
+
+    public async Task<Result<EventDto>> UpdateEventAsync(int id, EventUpdateDto eventData)
+    {
+        if (ValidateEventDto(eventData, out var errorMessage)) 
+            return Result<EventDto>.Failure(errorMessage);
         var eventFound = Events.FirstOrDefault(e => e.Id == id);
         if (eventFound is null)
-            return ApiResult.Failed("event not found");
-        return ApiResult<EventDto>.Created(eventFound.AsDto());
-    }
-
-    public async Task<ApiBaseResult> GetAllEventsAsync()
-    {
-        return ApiResult<List<EventDto>>.Ok(Events
-            .Select(e => e.AsDto()) 
-            .ToList());
-    }
-
-    public async Task<ApiBaseResult> UpdateEventAsync(EventUpdateDto eventData)
-    {
-        if (ValidateEventDto(eventData, out var result)) 
-            return result;
-        var eventFound = Events.FirstOrDefault(e => e.Id == eventData.Id);
-        if (eventFound is null)
-            return ApiResult.Failed("event not found");
+            return Result<EventDto>.Failure(ErrorsMessages.EventNotFound);
         eventFound.Title = eventData.Title;
         eventFound.StartAt = eventData.StartAt;
         eventFound.EndAt = eventData.EndAt;
-        return ApiResult<EventDto>.Ok(eventFound.AsDto());
+        eventFound.Description = eventData.Description;
+        return Result<EventDto>.Success(eventFound.AsDto());
     }
 
-    public async Task<ApiBaseResult> UpdateEventAsync(int id, string newTitle)
+    public async Task<Result<EventDto>> UpdateEventAsync(int id, string newTitle)
     {
         var eventFound = Events.FirstOrDefault(e => e.Id == id);
         if (eventFound is null)
-            return ApiResult.Failed("event not found");
+            return Result<EventDto>.Failure(ErrorsMessages.EventNotFound);
         eventFound.Title = newTitle;
-        return ApiResult.Ok();
+        return Result<EventDto>.Success(eventFound.AsDto());
     }
 
-    public async Task<ApiBaseResult> DeleteEventAsync(int id)
+    public async Task<Result> DeleteEventAsync(int id)
     {
         var success = Events.RemoveAll(e => e.Id == id) != 0;
         if (success)
-            return ApiResult.Ok();
-        return ApiResult.Failed("event not found");
+            return Result.Success();
+        return Result.Failure(ErrorsMessages.EventNotFound);
     }
 
     private bool EventExistsByTitle(string title)
@@ -114,21 +110,21 @@ public class EventService : IEventService
             string.Equals(e.Title, title, StringComparison.OrdinalIgnoreCase));
     }
 
-    private static bool ValidateEventDto(CreateEventDto eventData, out ApiBaseResult result)
+    private static bool ValidateEventDto(CreateEventDto eventData, out string errorMessage)
     {
         if (eventData.StartAt < DateTime.Now)
         {
-            result = ApiResult.Failed("you can't create an event in the past.");
+            errorMessage = ErrorsMessages.CannotCreateEventInThePast;
             return true;
         }
 
         if (eventData.StartAt >= eventData.EndAt)
         {
-            result = ApiResult.Failed("you can't create an event with a start date that ends after.");
+            errorMessage = ErrorsMessages.CannotCreateEventEndsAfterStarts;
             return true;
         }
 
-        result = ApiResult.Ok();
+        errorMessage = string.Empty;
         return false;
     }
 }

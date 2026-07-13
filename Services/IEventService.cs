@@ -1,14 +1,14 @@
-﻿using Events_API.DTOs.Events;
-using Events_API.DTOs.Results;
+﻿using Events_API.DTOs;
+using Events_API.DTOs.Events;
 
 namespace Events_API.Services;
 
 public interface IEventService
 {
-    Task<ApiBaseResult> CreateEventAsync(CreateEventDto eventData);
-    Task<ApiBaseResult> GetEventByIdAsync(int id);
-    Task<ApiBaseResult> GetAllEventsAsync();
-    Task<ApiBaseResult> UpdateEventAsync(EventUpdateDto eventData);
-    Task<ApiBaseResult> UpdateEventAsync(int id, string newTitle);
-    Task<ApiBaseResult> DeleteEventAsync(int id);
+    Task<EventDto?> GetEventByIdAsync(int id);
+    Task<List<EventDto>> GetAllEventsAsync();
+    Task<Result<EventDto>> CreateEventAsync(CreateEventDto eventData);
+    Task<Result<EventDto>> UpdateEventAsync(int id, EventUpdateDto eventData);
+    Task<Result<EventDto>> UpdateEventAsync(int id, string newTitle);
+    Task<Result> DeleteEventAsync(int id); 
 }

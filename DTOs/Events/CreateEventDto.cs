@@ -2,9 +2,10 @@
 
 namespace Events_API.DTOs.Events;
 
-public class CreateEventDto
+public record CreateEventDto
 {
-    [Required] public string Title { get; set; }
-    [Required] public DateTime StartAt { get; set; }
-    [Required] public DateTime EndAt { get; set; }
+    [Required] public required  string Title { get; set; }
+    public string? Description { get; set; }
+    [Required] public required  DateTime StartAt { get; set; }
+    [Required] public required  DateTime EndAt { get; set; }
 }
