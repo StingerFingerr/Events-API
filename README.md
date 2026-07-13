@@ -31,8 +31,8 @@ dotnet run
 
 После успешного запуска приложение будет доступно локально. Для проверки эндпоинтов настроена интерактивная документация:
 
-* **Swagger UI:** Перейдите по адресу [https://localhost:5002/swagger](https://localhost:7193/swagger) *(или укажите ваш порт из launchSettings.json)*, чтобы отправлять запросы прямо из браузера.
-* **OpenAPI Спецификация (JSON):** Сырая схема эндпоинтов доступна по адресу `https://localhost:5002/openapi/v1.json`.
+* **Swagger UI:** Перейдите по адресу [http://localhost:5002/swagger/index.html](http://localhost:5002/swagger/index.html) *(или укажите ваш собственный порт из launchSettings.json)*.
+* **OpenAPI Спецификация (JSON):** Сырая схема эндпоинтов доступна по адресу [http://localhost:5002/openapi/v1.json](http://localhost:5002/openapi/v1.json).
 
 ---
 
