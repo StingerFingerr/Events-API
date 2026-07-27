@@ -39,7 +39,7 @@ public class EventService : IEventService
         ];
     }
     
-    public async Task<EventDto?> GetEventByIdAsync(int id)
+    public EventDto? GetEventByIdAsync(int id)
     {
         var eventFound = Events.FirstOrDefault(e => e.Id == id);
         if (eventFound is null)
@@ -48,7 +48,7 @@ public class EventService : IEventService
     }
 
 
-    public async Task<Result<EventDto>> CreateEventAsync(CreateEventDto eventData)
+    public Result<EventDto> CreateEventAsync(CreateEventDto eventData)
     {
         if (ValidateEventDto(eventData, out var errorMessage)) 
             return Result<EventDto>.Failure(errorMessage);
@@ -61,6 +61,7 @@ public class EventService : IEventService
             Title = eventData.Title,
             StartAt = eventData.StartAt,
             EndAt = eventData.EndAt,
+            Description = eventData.Description
         };
 
         Events.Add(newEvent);
@@ -68,12 +69,12 @@ public class EventService : IEventService
         return Result<EventDto>.Success(newEvent.AsDto());
     }
 
-    public async Task<List<EventDto>> GetAllEventsAsync()
+    public List<EventDto> GetAllEventsAsync()
     {
         return Events.Select(e => e.AsDto()).ToList();
     }
 
-    public async Task<Result<EventDto>> UpdateEventAsync(int id, EventUpdateDto eventData)
+    public Result<EventDto> UpdateEventAsync(int id, EventUpdateDto eventData)
     {
         if (ValidateEventDto(eventData, out var errorMessage)) 
             return Result<EventDto>.Failure(errorMessage);
@@ -87,7 +88,7 @@ public class EventService : IEventService
         return Result<EventDto>.Success(eventFound.AsDto());
     }
 
-    public async Task<Result<EventDto>> UpdateEventAsync(int id, string newTitle)
+    public Result<EventDto> UpdateEventAsync(int id, string newTitle)
     {
         var eventFound = Events.FirstOrDefault(e => e.Id == id);
         if (eventFound is null)
@@ -96,7 +97,7 @@ public class EventService : IEventService
         return Result<EventDto>.Success(eventFound.AsDto());
     }
 
-    public async Task<Result> DeleteEventAsync(int id)
+    public Result DeleteEventAsync(int id)
     {
         var success = Events.RemoveAll(e => e.Id == id) != 0;
         if (success)
