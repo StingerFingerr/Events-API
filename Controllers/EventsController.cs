@@ -23,9 +23,9 @@ public class EventsController(IEventService eventService) : ControllerBase
 
     [HttpGet]
     [ProducesResponseType<List<EventDto>>(StatusCodes.Status200OK)]
-    public IActionResult GetAllEvents()
+    public IActionResult GetEvents([FromQuery] GetEventsWithFiltersDto filters)
     {
-        var result = eventService.GetAllEventsAsync();
+        var result = eventService.GetEventByFilters(filters);
         return Ok(result);
     }
     

@@ -1,6 +1,7 @@
 ﻿using Events_API.Consts;
 using Events_API.DTOs;
 using Events_API.DTOs.Events;
+using Events_API.DTOs.Events.Results;
 using Events_API.Models;
 
 namespace Events_API.Services;
@@ -20,21 +21,33 @@ public class EventService : IEventService
         [
             new Event()
             {
-                Id = NewEventId, Title = "event 1", 
+                Id = NewEventId, Title = "event 11", 
                 StartAt = DateTime.Now.AddDays(1),
                 EndAt = DateTime.Now.AddDays(2)
             },
             new Event()
             {
-                Id = NewEventId, Title = "event 2", 
+                Id = NewEventId, Title = "event 12", 
                 StartAt = DateTime.Now.AddDays(5),
                 EndAt = DateTime.Now.AddDays(7)
             },
             new Event()
             {
-                Id = NewEventId, Title = "event 3", 
+                Id = NewEventId, Title = "event 23", 
                 StartAt = DateTime.Now.AddDays(14),
                 EndAt = DateTime.Now.AddDays(15)
+            },
+            new Event()
+            {
+                Id = NewEventId, Title = "event 24", 
+                StartAt = DateTime.Now.AddDays(16),
+                EndAt = DateTime.Now.AddDays(17)
+            },
+            new Event()
+            {
+                Id = NewEventId, Title = "event 25", 
+                StartAt = DateTime.Now.AddDays(18),
+                EndAt = DateTime.Now.AddDays(19)
             },
         ];
     }
@@ -103,6 +116,30 @@ public class EventService : IEventService
         if (success)
             return Result.Success();
         return Result.Failure(ErrorsMessages.EventNotFound);
+    }
+
+    public GetEventsWithFiltersResult GetEventByFilters(GetEventsWithFiltersDto filters)
+    {
+        var filtered = Events.AsEnumerable();
+        
+        if(filters.Title is not null)
+            filtered = filtered.Where(e => e.Title.Contains(filters.Title, StringComparison.OrdinalIgnoreCase));
+        if(filters.From is not null)
+            filtered = filtered.Where(e =>  e.StartAt >= filters.From);
+        if(filters.To is not null)
+            filtered = filtered.Where(e =>  e.StartAt <= filters.To);
+
+        var items = filtered
+            .OrderBy(e => e.StartAt)
+            .Skip((filters.Page - 1) * filters.PageSize)
+            .Take(filters.PageSize)
+            .Select(e => e.AsDto())
+            .ToList();
+
+        var totalItems = filtered.Count();
+        var totalPages = (int)Math.Ceiling((double)totalItems / filters.PageSize);
+        
+        return new GetEventsWithFiltersResult(items, filters.Page, filters.PageSize, totalItems, totalPages);
     }
 
     private bool EventExistsByTitle(string title)

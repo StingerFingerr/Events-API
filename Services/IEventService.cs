@@ -1,5 +1,6 @@
 ﻿using Events_API.DTOs;
 using Events_API.DTOs.Events;
+using Events_API.DTOs.Events.Results;
 
 namespace Events_API.Services;
 
@@ -10,5 +11,6 @@ public interface IEventService
     Result<EventDto> CreateEventAsync(CreateEventDto eventData);
     Result<EventDto> UpdateEventAsync(int id, EventUpdateDto eventData);
     Result<EventDto> UpdateEventAsync(int id, string newTitle);
-    Result DeleteEventAsync(int id); 
+    Result DeleteEventAsync(int id);
+    GetEventsWithFiltersResult GetEventByFilters(GetEventsWithFiltersDto filters);
 }
