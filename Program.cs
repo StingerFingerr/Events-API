@@ -1,8 +1,10 @@
 using Events_API.Extensions;
+using Events_API.Middlewares;
 using Events_API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
 builder.Services.AddControllersWithOptions();
 builder.Services.AddSwaggerGen();
@@ -14,6 +16,10 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
+
+app.UseExceptionHandler(); //fallback handler
+app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
+
 
 app.UseSwagger();
 app.UseSwaggerUI(); 
