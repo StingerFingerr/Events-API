@@ -6,11 +6,11 @@ namespace Events_API.Services;
 
 public interface IEventService
 {
-    EventDto? GetEventByIdAsync(int id);
-    List<EventDto> GetAllEventsAsync();
-    Result<EventDto> CreateEventAsync(CreateEventDto eventData);
-    Result<EventDto> UpdateEventAsync(int id, EventUpdateDto eventData);
-    Result<EventDto> UpdateEventAsync(int id, string newTitle);
-    Result DeleteEventAsync(int id);
-    GetEventsWithFiltersResult GetEventByFilters(GetEventsWithFiltersDto filters);
+    EventDto? GetEventById(int id);
+    List<EventDto> GetAllEvents();
+    Result<EventDto> CreateEvent(CreateEventDto eventData);
+    Result<EventDto> UpdateEvent(int id, EventUpdateDto eventData);
+    Result<EventDto> UpdateEvent(int id, string newTitle);
+    Result DeleteEvent(int id);
+    GetEventsWithFiltersResult GetEventsByFilters(GetEventsByFiltersDto filters);
 }

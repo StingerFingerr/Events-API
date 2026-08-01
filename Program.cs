@@ -9,6 +9,7 @@ builder.Services.AddOpenApi();
 builder.Services.AddControllersWithOptions();
 builder.Services.AddSwaggerGen();
 builder.Services.AddSingleton<IEventService, EventService>();  
+builder.Services.AddSingleton<IEventsRepository, InMemoryEventsRepository>();
 
 var app = builder.Build();
 

@@ -1,6 +1,6 @@
 ﻿namespace Events_API.DTOs.Events;
 
-public class GetEventsWithFiltersDto
+public class GetEventsByFiltersDto
 {
     public string? Title { get; set; }
     public DateTime? From { get; set; }

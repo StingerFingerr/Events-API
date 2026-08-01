@@ -15,7 +15,7 @@ public class EventsController(IEventService eventService) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public IActionResult GetEvent(int id)
     {
-        var result = eventService.GetEventByIdAsync(id);
+        var result = eventService.GetEventById(id);
         if(result is null)
             return NotFound();
         return  Ok(result);
@@ -23,9 +23,9 @@ public class EventsController(IEventService eventService) : ControllerBase
 
     [HttpGet]
     [ProducesResponseType<List<EventDto>>(StatusCodes.Status200OK)]
-    public IActionResult GetEvents([FromQuery] GetEventsWithFiltersDto filters)
+    public IActionResult GetEvents([FromQuery] GetEventsByFiltersDto filters)
     {
-        var result = eventService.GetEventByFilters(filters);
+        var result = eventService.GetEventsByFilters(filters);
         return Ok(result);
     }
     
@@ -34,7 +34,7 @@ public class EventsController(IEventService eventService) : ControllerBase
     [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
     public IActionResult PostEvent([FromBody] CreateEventDto eventData)
     {
-        var result = eventService.CreateEventAsync(eventData);
+        var result = eventService.CreateEvent(eventData);
         if(result.IsSuccess)
             return CreatedAtAction(
                 nameof(GetEvent), 
@@ -49,7 +49,7 @@ public class EventsController(IEventService eventService) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public IActionResult PatchEvent(int id, [FromBody] UpdateTitleDto dto)
     {
-        var result = eventService.UpdateEventAsync(id, dto.Title);
+        var result = eventService.UpdateEvent(id, dto.Title);
 
         if (!result.IsSuccess)
         {
@@ -75,7 +75,7 @@ public class EventsController(IEventService eventService) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public IActionResult PutEvent(int id, EventUpdateDto newEventData)
     {
-        var result = eventService.UpdateEventAsync(id, newEventData);
+        var result = eventService.UpdateEvent(id, newEventData);
 
         if (result.IsSuccess is false)
         {
@@ -101,7 +101,7 @@ public class EventsController(IEventService eventService) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)] 
     public IActionResult DeleteEvent(int id)
     {
-        var result = eventService.DeleteEventAsync(id);
+        var result = eventService.DeleteEvent(id);
 
         if (!result.IsSuccess)
         {
