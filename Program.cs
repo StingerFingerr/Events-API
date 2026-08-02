@@ -10,6 +10,11 @@ builder.Services.AddControllersWithOptions();
 builder.Services.AddSwaggerGen();
 builder.Services.AddSingleton<IEventService, EventService>();  
 builder.Services.AddSingleton<IEventsRepository, InMemoryEventsRepository>();
+builder.Host.UseDefaultServiceProvider((context, options) =>
+{
+    options.ValidateScopes = true;
+    options.ValidateOnBuild = true; 
+});
 
 var app = builder.Build();
 
@@ -20,7 +25,6 @@ if (app.Environment.IsDevelopment())
 
 app.UseExceptionHandler(); //fallback handler
 app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
-
 
 app.UseSwagger();
 app.UseSwaggerUI(); 
