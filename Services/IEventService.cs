@@ -8,7 +8,6 @@ namespace Events_API.Services;
 public interface IEventService
 {
     EventDto GetEventById(int id);
-    List<EventDto> GetAllEvents();
     EventDto CreateEvent(CreateEventDto eventData);
     EventDto UpdateEvent(int id, EventUpdateDto eventData);
     EventDto UpdateEvent(int id, string newTitle);

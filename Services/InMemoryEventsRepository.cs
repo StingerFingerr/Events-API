@@ -1,54 +1,57 @@
-﻿using Events_API.Models;
+﻿using System.Collections.Concurrent;
+using Events_API.Models;
 
 namespace Events_API.Services;
 
 public class InMemoryEventsRepository : IEventsRepository
 {
-    public List<Event> Events { get; }
+    public ConcurrentDictionary<int, Event> Events { get; }
     public int NewEventId
     {
-        get => field++;
-    } = 1;
+        get
+        {
+            field++;
+            LastEventId = field;
+            return field;
+        }
+        private init
+        {
+            field = value;
+            LastEventId = field;
+        }
+    } = 0;
 
-    public InMemoryEventsRepository(List<Event>? events = null)
+    private int LastEventId { get; set; }
+
+    public InMemoryEventsRepository(ConcurrentDictionary<int, Event>? events = null)
     {
         if (events is not null)
         {
             Events = events;
+            NewEventId = events.Count;
             return;
         }
-        Events =
-        [
-            new Event()
+        
+        Events = new ConcurrentDictionary<int, Event>()
+        {
+            [NewEventId] = new Event()
             {
-                Id = NewEventId, Title = "event 11",
+                Id = LastEventId, Title = "rock festival",
                 StartAt = DateTime.Now.AddDays(1),
                 EndAt = DateTime.Now.AddDays(2)
             },
-            new Event()
+            [NewEventId] = new Event()
             {
-                Id = NewEventId, Title = "event 12",
+                Id = LastEventId, Title = "rap concert",
                 StartAt = DateTime.Now.AddDays(5),
                 EndAt = DateTime.Now.AddDays(7)
             },
-            new Event()
+            [NewEventId] = new Event()
             {
-                Id = NewEventId, Title = "event 23",
+                Id = LastEventId, Title = "food festival",
                 StartAt = DateTime.Now.AddDays(14),
                 EndAt = DateTime.Now.AddDays(15)
-            },
-            new Event()
-            {
-                Id = NewEventId, Title = "event 24",
-                StartAt = DateTime.Now.AddDays(16),
-                EndAt = DateTime.Now.AddDays(17)
-            },
-            new Event()
-            {
-                Id = NewEventId, Title = "event 25",
-                StartAt = DateTime.Now.AddDays(18),
-                EndAt = DateTime.Now.AddDays(19)
-            },
-        ];
+            }
+        };
     }
 }

@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using System.Collections.Concurrent;
+using System.ComponentModel.DataAnnotations;
 using Events_API.Consts;
 using Events_API.DTOs.Events;
 using Events_API.DTOs.Events.Incoming;
@@ -13,30 +14,32 @@ public class EventsFiltersTests
 {
     private IEventService _eventService;
     private readonly IEventsRepository _repository;
-    private List<Event> _events;
+    private ConcurrentDictionary<int, Event> _events;
 
     public EventsFiltersTests()
     {
-        _events = [
-            new()
+        _events = new ConcurrentDictionary<int, Event>()
+        {
+            [1] = new Event()
             {
                 Id = 1, Title = "rock festival",
                 StartAt = DateTime.Now.AddDays(1),
                 EndAt = DateTime.Now.AddDays(2)
             },
-            new()
+            [2] = new Event()
             {
                 Id = 2, Title = "rap concert",
                 StartAt = DateTime.Now.AddDays(5),
                 EndAt = DateTime.Now.AddDays(7)
             },
-            new()
+            [3] = new Event()
             {
                 Id = 3, Title = "food festival",
                 StartAt = DateTime.Now.AddDays(14),
                 EndAt = DateTime.Now.AddDays(15)
-            },
-        ];
+            }
+
+        };
         _repository = new InMemoryEventsRepository(_events);
 
         _eventService = new EventsService(_repository);
@@ -66,7 +69,7 @@ public class EventsFiltersTests
             StartAt = DateTime.Now.AddDays(1),
             EndAt = DateTime.Now.AddDays(7),
         };
-        mockRepository.Setup<List<Event>>(r => r.Events).Returns(_events);
+        mockRepository.Setup<ConcurrentDictionary<int, Event>>(r => r.Events).Returns(_events);
 
         eventsService.CreateEvent(newEvent);
 
@@ -106,20 +109,21 @@ public class EventsFiltersTests
     public void FilterByEndDate_ReturnsMatchingEvents()
     {
         var searchEndDate = DateTime.Now.AddDays(10);
-        var expected = _events.GetRange(0, 2);
+        var expectedFirst = _events[1];
+        var expectedSecond = _events[2];
         var filter = new GetEventsByFiltersDto() { To = searchEndDate };
         
         var result = _eventService.GetEventsByFilters(filter);
         
-        Assert.Equal(expected.Count, result.TotalItems);
+        Assert.Equal(2, result.TotalItems);
         Assert.Collection(result.Events,
             firstElement =>
             {
-                Assert.Equal(expected[0].Id, firstElement.Id);
+                Assert.Equal(expectedFirst.Id, firstElement.Id);
             },
             secondElement =>
             {
-                Assert.Equal(expected[1].Id, secondElement.Id);
+                Assert.Equal(expectedSecond.Id, secondElement.Id);
             });
     }
 
@@ -156,7 +160,7 @@ public class EventsFiltersTests
         var result = _eventService.CreateEvent(newEvent);
 
         Assert.NotNull(result);
-        Assert.Contains(result.Id, _repository.Events.Select(e => e.Id));
+        Assert.True(_repository.Events.ContainsKey(result.Id));
     }
 
     [Fact]
@@ -178,7 +182,7 @@ public class EventsFiltersTests
 
         _eventService.DeleteEvent(deleteId);
 
-        Assert.DoesNotContain(deleteId, _repository.Events.Select(e => e.Id));
+        Assert.False(_repository.Events.ContainsKey(deleteId));
     }
 
     [Fact]
@@ -195,7 +199,7 @@ public class EventsFiltersTests
         var wrongId = 69;
 
         Assert.Throws<NotFoundException>(() => _eventService.UpdateEvent(wrongId, "new title"));
-        Assert.DoesNotContain(wrongId, _repository.Events.Select(e => e.Id));
+        Assert.False(_repository.Events.ContainsKey(wrongId));
     }
 
     [Fact]

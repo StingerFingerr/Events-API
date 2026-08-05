@@ -12,19 +12,19 @@ public class EventsService(IEventsRepository repository) : IEventService
 {
     public EventDto GetEventById(int id)
     {
-        var eventFound = repository.Events.FirstOrDefault(e => e.Id == id);
-        if (eventFound is null)
-            throw new NotFoundException();
-        return eventFound.AsDto();
+        if (repository.Events.TryGetValue(id, out var eventData))
+            return eventData.AsDto();
+        throw new NotFoundException();
     }
 
     public EventDto CreateEvent(CreateEventDto eventData)
     {
         if (ValidateEventDto(eventData, out var errorMessage))
             throw new ValidationException(errorMessage);
-        if (EventExistsByTitle(eventData.Title))
-            throw new ConflictException(ErrorsMessages.EventAlreadyExists);
 
+        if(EventExistsByTitle(eventData.Title))
+            throw new ConflictException(ErrorsMessages.EventAlreadyExists);
+        
         var newEvent = new Event()
         {
             Id = repository.NewEventId,
@@ -33,29 +33,28 @@ public class EventsService(IEventsRepository repository) : IEventService
             EndAt = eventData.EndAt,
             Description = eventData.Description
         };
-
-        repository.Events.Add(newEvent);
-
-        return newEvent.AsDto();
-    }
-
-    public List<EventDto> GetAllEvents()
-    {
-        return repository.Events.Select(e => e.AsDto()).ToList();
+        
+        if (repository.Events.TryAdd(newEvent.Id, newEvent))
+            return newEvent.AsDto();
+        
+        throw new ConflictException(ErrorsMessages.InternalServerError);
     }
 
     public EventDto UpdateEvent(int id, EventUpdateDto eventData)
     {
         if (ValidateEventDto(eventData, out var errorMessage))
             throw new ValidationException(errorMessage);
-        var eventFound = repository.Events.FirstOrDefault(e => e.Id == id);
-        if (eventFound is null)
-            throw new NotFoundException();
-        eventFound.Title = eventData.Title;
-        eventFound.StartAt = eventData.StartAt;
-        eventFound.EndAt = eventData.EndAt;
-        eventFound.Description = eventData.Description;
-        return eventFound.AsDto();
+
+        if (repository.Events.TryGetValue(id, out var eventFound))
+        {
+            eventFound.Title = eventData.Title;
+            eventFound.StartAt = eventData.StartAt;
+            eventFound.EndAt = eventData.EndAt;
+            eventFound.Description = eventData.Description;
+            return eventFound.AsDto();
+        }
+
+        throw new NotFoundException();
     }
 
     public EventDto UpdateEvent(int id, string newTitle)
@@ -63,23 +62,18 @@ public class EventsService(IEventsRepository repository) : IEventService
         if(EventExistsByTitle(newTitle))
             throw new ConflictException(ErrorsMessages.EventAlreadyExists);
         
-        var eventFound = repository.Events.FirstOrDefault(e => e.Id == id);
-        
-        if (eventFound is null)
-            throw new NotFoundException();
-        
-        eventFound.Title = newTitle;
-        return eventFound.AsDto();
+        if (repository.Events.TryGetValue(id, out var eventFound))
+        {
+            eventFound.Title = newTitle;
+            return eventFound.AsDto();
+        }
+
+        throw new NotFoundException();
     }
 
     public void DeleteEvent(int id)
     {
-        var eventToDelete = repository.Events.FirstOrDefault(e => e.Id == id);
-        if (eventToDelete is null)
-            throw new NotFoundException();
-        var removed = repository.Events.Remove(eventToDelete);
-
-        if (removed is false)
+        if(repository.Events.Remove(id, out _) is false)
             throw new NotFoundException();
     }
 
@@ -91,17 +85,17 @@ public class EventsService(IEventsRepository repository) : IEventService
         var filtered = repository.Events.AsEnumerable();
 
         if (filters.Title is not null)
-            filtered = filtered.Where(e => e.Title.Contains(filters.Title, StringComparison.OrdinalIgnoreCase));
+            filtered = filtered.Where(e => e.Value.Title.Contains(filters.Title, StringComparison.OrdinalIgnoreCase));
         if (filters.From is not null)
-            filtered = filtered.Where(e => e.StartAt >= filters.From);
+            filtered = filtered.Where(e => e.Value.StartAt >= filters.From);
         if (filters.To is not null)
-            filtered = filtered.Where(e => e.StartAt <= filters.To);
+            filtered = filtered.Where(e => e.Value.StartAt <= filters.To);
 
         var items = filtered
-            .OrderBy(e => e.StartAt)
+            .OrderBy(e => e.Value.StartAt)
             .Skip((filters.Page - 1) * filters.PageSize)
             .Take(filters.PageSize)
-            .Select(e => e.AsDto())
+            .Select(e => e.Value.AsDto())
             .ToList();
 
         var totalItems = filtered.Count();
@@ -110,11 +104,8 @@ public class EventsService(IEventsRepository repository) : IEventService
         return new GetEventsWithFiltersResult(items, filters.Page, filters.PageSize, totalItems, totalPages);
     }
 
-    private bool EventExistsByTitle(string title)
-    {
-        return repository.Events.Any(e =>
-            string.Equals(e.Title, title, StringComparison.OrdinalIgnoreCase));
-    }
+    private bool EventExistsByTitle(string title) => 
+        repository.Events.Any(e => e.Value.Title.Equals(title, StringComparison.OrdinalIgnoreCase));
 
     private static bool ValidateEventDto(CreateEventDto eventData, out string errorMessage)
     {

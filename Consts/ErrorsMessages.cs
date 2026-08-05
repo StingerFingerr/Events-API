@@ -9,4 +9,5 @@ public abstract record ErrorsMessages
     public const string CannotCreateEventInThePast = "Cannot create an event in the past.";
     public const string CannotCreateEventEndsAfterStarts = "Cannot create an event with a start date that ends after.";
     public const string EventTitleIsShort = "Cannot create an event with a short title (less than 3 characters)";
+    public const string InternalServerError = "Some internal server error occured";
 }
