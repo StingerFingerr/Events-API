@@ -20,11 +20,11 @@ public class EventsService(IEventsRepository repository) : IEventService
 
     public Result<EventDto> CreateEvent(CreateEventDto eventData)
     {
-        if (ValidateEventDto(eventData, out var errorMessage)) 
+        if (ValidateEventDto(eventData, out var errorMessage))
             return Result<EventDto>.Failure(errorMessage);
         if (EventExistsByTitle(eventData.Title))
             return Result<EventDto>.Failure(ErrorsMessages.EventAlreadyExists);
-        
+
         var newEvent = new Event()
         {
             Id = repository.NewEventId,
@@ -46,7 +46,7 @@ public class EventsService(IEventsRepository repository) : IEventService
 
     public Result<EventDto> UpdateEvent(int id, EventUpdateDto eventData)
     {
-        if (ValidateEventDto(eventData, out var errorMessage)) 
+        if (ValidateEventDto(eventData, out var errorMessage))
             return Result<EventDto>.Failure(errorMessage);
         var eventFound = repository.Events.FirstOrDefault(e => e.Id == id);
         if (eventFound is null)
@@ -80,15 +80,15 @@ public class EventsService(IEventsRepository repository) : IEventService
     {
         if (filters.Page < 1 || filters.PageSize < 1)
             throw new ArgumentException("Pagination parameters must be greater than or equal to 1.");
-        
+
         var filtered = repository.Events.AsEnumerable();
-        
-        if(filters.Title is not null)
+
+        if (filters.Title is not null)
             filtered = filtered.Where(e => e.Title.Contains(filters.Title, StringComparison.OrdinalIgnoreCase));
-        if(filters.From is not null)
-            filtered = filtered.Where(e =>  e.StartAt >= filters.From);
-        if(filters.To is not null)
-            filtered = filtered.Where(e =>  e.StartAt <= filters.To);
+        if (filters.From is not null)
+            filtered = filtered.Where(e => e.StartAt >= filters.From);
+        if (filters.To is not null)
+            filtered = filtered.Where(e => e.StartAt <= filters.To);
 
         var items = filtered
             .OrderBy(e => e.StartAt)
@@ -99,7 +99,7 @@ public class EventsService(IEventsRepository repository) : IEventService
 
         var totalItems = filtered.Count();
         var totalPages = (int)Math.Ceiling((double)totalItems / filters.PageSize);
-        
+
         return new GetEventsWithFiltersResult(items, filters.Page, filters.PageSize, totalItems, totalPages);
     }
 
@@ -116,7 +116,7 @@ public class EventsService(IEventsRepository repository) : IEventService
             errorMessage = ErrorsMessages.EventTitleIsShort;
             return true;
         }
-        
+
         if (eventData.StartAt < DateTime.Now)
         {
             errorMessage = ErrorsMessages.CannotCreateEventInThePast;

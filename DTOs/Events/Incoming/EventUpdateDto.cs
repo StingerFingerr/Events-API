@@ -2,5 +2,5 @@
 
 public record EventUpdateDto : CreateEventDto
 {
-    
+
 }

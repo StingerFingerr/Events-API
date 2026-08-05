@@ -17,9 +17,9 @@ public class EventsController(IEventService eventService) : ControllerBase
     public IActionResult GetEvent(int id)
     {
         var result = eventService.GetEventById(id);
-        if(result is null)
+        if (result is null)
             return NotFound();
-        return  Ok(result);
+        return Ok(result);
     }
 
     [HttpGet]
@@ -29,21 +29,21 @@ public class EventsController(IEventService eventService) : ControllerBase
         var result = eventService.GetEventsByFilters(filters);
         return Ok(result);
     }
-    
+
     [HttpPost]
     [ProducesResponseType(typeof(EventDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
     public IActionResult PostEvent([FromBody] CreateEventDto eventData)
     {
         var result = eventService.CreateEvent(eventData);
-        if(result.IsSuccess)
+        if (result.IsSuccess)
             return CreatedAtAction(
-                nameof(GetEvent), 
-                new { id = result.Value!.Id }, 
+                nameof(GetEvent),
+                new { id = result.Value!.Id },
                 result.Value);
         return BadRequest(result.ErrorMessage);
     }
-    
+
     [HttpPatch("{id:int}")]
     [ProducesResponseType(typeof(EventDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
@@ -91,9 +91,9 @@ public class EventsController(IEventService eventService) : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)] 
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)] 
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)] 
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public IActionResult DeleteEvent(int id)
     {
         var result = eventService.DeleteEvent(id);
@@ -110,6 +110,6 @@ public class EventsController(IEventService eventService) : ControllerBase
             });
         }
 
-        return NoContent(); 
+        return NoContent();
     }
 }

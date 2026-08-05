@@ -28,14 +28,14 @@ public class GlobalExceptionHandlingMiddleware(
             httpContext.Request.Method,
             httpContext.Request.Path,
             httpContext.Request.Headers["x-request-id"]);
-            
+
         if (httpContext.Response.HasStarted)
         {
             return;
         }
 
         var statusCode = MapStatusCode(ex);
-        
+
         httpContext.Response.StatusCode = statusCode;
         httpContext.Response.ContentType = "application/json";
 
@@ -53,7 +53,7 @@ public class GlobalExceptionHandlingMiddleware(
         {
             ValidationException => StatusCodes.Status400BadRequest,
             ArgumentException => StatusCodes.Status400BadRequest,
-            
+
             NotFoundException => StatusCodes.Status404NotFound,
             _ => StatusCodes.Status500InternalServerError
         };
