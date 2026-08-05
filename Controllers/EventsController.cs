@@ -53,9 +53,6 @@ public class EventsController(IEventService eventService) : ControllerBase
 
         if (!result.IsSuccess)
         {
-            if (string.Equals(result.ErrorMessage, ErrorsMessages.EventNotFound, StringComparison.Ordinal))
-                return NotFound();
-
             return BadRequest(new ProblemDetails
             {
                 Type = "https://ietf.org",
@@ -79,9 +76,6 @@ public class EventsController(IEventService eventService) : ControllerBase
 
         if (result.IsSuccess is false)
         {
-            if (string.Equals(result.ErrorMessage, ErrorsMessages.EventNotFound, StringComparison.Ordinal))
-                return NotFound();
-
             return BadRequest(new ProblemDetails
             {
                 Type = "https://ietf.org",
@@ -105,9 +99,6 @@ public class EventsController(IEventService eventService) : ControllerBase
 
         if (!result.IsSuccess)
         {
-            if (string.Equals(result.ErrorMessage, ErrorsMessages.EventNotFound, StringComparison.Ordinal))
-                return NotFound();
-
             return BadRequest(new ProblemDetails
             {
                 Type = "https://ietf.org",

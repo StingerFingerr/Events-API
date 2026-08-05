@@ -2,20 +2,20 @@
 using Events_API.DTOs;
 using Events_API.DTOs.Events;
 using Events_API.DTOs.Events.Results;
+using Events_API.Exceptions;
 using Events_API.Models;
 
 namespace Events_API.Services;
 
 public class EventService(IEventsRepository repository) : IEventService
 {
-    public EventDto? GetEventById(int id)
+    public EventDto GetEventById(int id)
     {
         var eventFound = repository.Events.FirstOrDefault(e => e.Id == id);
         if (eventFound is null)
-            return null;
+            throw new NotFoundException();
         return eventFound.AsDto();
     }
-
 
     public Result<EventDto> CreateEvent(CreateEventDto eventData)
     {
@@ -49,7 +49,7 @@ public class EventService(IEventsRepository repository) : IEventService
             return Result<EventDto>.Failure(errorMessage);
         var eventFound = repository.Events.FirstOrDefault(e => e.Id == id);
         if (eventFound is null)
-            return Result<EventDto>.Failure(ErrorsMessages.EventNotFound);
+            throw new NotFoundException();
         eventFound.Title = eventData.Title;
         eventFound.StartAt = eventData.StartAt;
         eventFound.EndAt = eventData.EndAt;
@@ -61,17 +61,18 @@ public class EventService(IEventsRepository repository) : IEventService
     {
         var eventFound = repository.Events.FirstOrDefault(e => e.Id == id);
         if (eventFound is null)
-            return Result<EventDto>.Failure(ErrorsMessages.EventNotFound);
+            throw new NotFoundException();
         eventFound.Title = newTitle;
         return Result<EventDto>.Success(eventFound.AsDto());
     }
 
     public Result DeleteEvent(int id)
     {
-        var success = repository.Events.RemoveAll(e => e.Id == id) != 0;
-        if (success)
-            return Result.Success();
-        return Result.Failure(ErrorsMessages.EventNotFound);
+        var eventToDelete = repository.Events.FirstOrDefault(e => e.Id == id);
+        if (eventToDelete is null)
+            throw new NotFoundException();
+        repository.Events.Remove(eventToDelete);
+        return Result.Success();
     }
 
     public GetEventsWithFiltersResult GetEventsByFilters(GetEventsByFiltersDto filters)
