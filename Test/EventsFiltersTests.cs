@@ -103,6 +103,47 @@ public class EventsFiltersTests
     }
 
     [Fact]
+    public void FilterByEndDate_ReturnsMatchingEvents()
+    {
+        var searchEndDate = DateTime.Now.AddDays(10);
+        var expected = _events.GetRange(0, 2);
+        var filter = new GetEventsByFiltersDto() { To = searchEndDate };
+        
+        var result = _eventService.GetEventsByFilters(filter);
+        
+        Assert.Equal(expected.Count, result.TotalItems);
+        Assert.Collection(result.Events,
+            firstElement =>
+            {
+                Assert.Equal(expected[0].Id, firstElement.Id);
+            },
+            secondElement =>
+            {
+                Assert.Equal(expected[1].Id, secondElement.Id);
+            });
+    }
+
+    [Theory]
+    [InlineData("festival", 10, 15, 3)]
+    [InlineData("FESTIVAL", 11, 14, 3)]
+    [InlineData("Concert", 1, 22, 2)]
+    public void FilterByTitleFromTo_ReturnsMatchingEvents(string searchTitle, int daysFrom, int daysTo, int expectedEventId)
+    {
+        var from = DateTime.Now.AddDays(daysFrom);
+        var to = DateTime.Now.AddDays(daysTo);
+        var filter = new GetEventsByFiltersDto()
+        {
+            Title = searchTitle,
+            From = from,
+            To = to
+        };
+        
+        var result = _eventService.GetEventsByFilters(filter);
+        
+        Assert.Equal(result.Events.First().Id, expectedEventId);
+    }
+
+    [Fact]
     public void SuccessCreateEvent_AddsEventInRepository()
     {
         var newEvent = new CreateEventDto()
