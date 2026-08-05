@@ -1,4 +1,5 @@
-﻿using Events_API.Consts;
+﻿using System.ComponentModel.DataAnnotations;
+using Events_API.Consts;
 using Events_API.DTOs.Events;
 using Events_API.DTOs.Events.Incoming;
 using Events_API.Exceptions;
@@ -51,7 +52,7 @@ public class EventsFiltersTests
         var service = new EventsService(repositoryMock.Object);
         var invalidFilters = new GetEventsByFiltersDto { Page = page, PageSize = pageSize };
 
-        Assert.Throws<ArgumentException>(() => service.GetEventsByFilters(invalidFilters));
+        Assert.Throws<ValidationException>(() => service.GetEventsByFilters(invalidFilters));
     }
 
     [Fact]
@@ -113,9 +114,8 @@ public class EventsFiltersTests
 
         var result = _eventService.CreateEvent(newEvent);
 
-        Assert.True(result.IsSuccess);
-        Assert.NotNull(result.Value);
-        Assert.Contains(result.Value.Id, _repository.Events.Select(e => e.Id));
+        Assert.NotNull(result);
+        Assert.Contains(result.Id, _repository.Events.Select(e => e.Id));
     }
 
     [Fact]
@@ -126,9 +126,8 @@ public class EventsFiltersTests
 
         var result = _eventService.UpdateEvent(updateId, newTitle);
 
-        Assert.True(result.IsSuccess);
-        Assert.NotNull(result.Value);
-        Assert.Equal(newTitle, result.Value.Title);
+        Assert.NotNull(result);
+        Assert.Equal(newTitle, result.Title);
     }
 
     [Fact]
@@ -136,9 +135,9 @@ public class EventsFiltersTests
     {
         var deleteId = 3;
 
-        var result = _eventService.DeleteEvent(deleteId);
+        _eventService.DeleteEvent(deleteId);
 
-        Assert.True(result.IsSuccess);
+        Assert.DoesNotContain(deleteId, _repository.Events.Select(e => e.Id));
     }
 
     [Fact]
@@ -159,7 +158,7 @@ public class EventsFiltersTests
     }
 
     [Fact]
-    public void WrongTitleCreateEvent_ReturnsFalseResult()
+    public void WrongTitleCreateEvent_ThrowsValidationException()
     {
         var createDto = new CreateEventDto()
         {
@@ -167,14 +166,8 @@ public class EventsFiltersTests
             StartAt = DateTime.Now,
             EndAt = DateTime.Now.AddDays(1),
         };
-        var countBeforeCreate = _repository.Events.Count;
 
-        var result = _eventService.CreateEvent(createDto);
-        var countAfterCreate = _repository.Events.Count;
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorsMessages.EventTitleIsShort, result.ErrorMessage);
-        Assert.Equal(countBeforeCreate, countAfterCreate);
+        Assert.Throws<ValidationException>(() => _eventService.CreateEvent(createDto));
     }
 
     [Fact]
@@ -187,10 +180,7 @@ public class EventsFiltersTests
             EndAt = DateTime.Now.AddDays(7),
         };
         var eventId = 1;
-
-        var result = _eventService.UpdateEvent(eventId, dateInPast);
-
-        Assert.False(result.IsSuccess);
-        Assert.Equal(ErrorsMessages.CannotCreateEventInThePast, result.ErrorMessage);
+        
+        Assert.Throws<ValidationException>(() => _eventService.UpdateEvent(eventId, dateInPast));
     }
 }

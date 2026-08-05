@@ -9,9 +9,9 @@ public interface IEventService
 {
     EventDto GetEventById(int id);
     List<EventDto> GetAllEvents();
-    Result<EventDto> CreateEvent(CreateEventDto eventData);
-    Result<EventDto> UpdateEvent(int id, EventUpdateDto eventData);
-    Result<EventDto> UpdateEvent(int id, string newTitle);
-    Result DeleteEvent(int id);
+    EventDto CreateEvent(CreateEventDto eventData);
+    EventDto UpdateEvent(int id, EventUpdateDto eventData);
+    EventDto UpdateEvent(int id, string newTitle);
+    void DeleteEvent(int id);
     GetEventsWithFiltersResult GetEventsByFilters(GetEventsByFiltersDto filters);
 }
