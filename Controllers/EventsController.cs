@@ -1,5 +1,6 @@
 ﻿using Events_API.Consts;
 using Events_API.DTOs.Events;
+using Events_API.DTOs.Events.Incoming;
 using Events_API.Services;
 using Microsoft.AspNetCore.Mvc;
 

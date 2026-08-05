@@ -1,4 +1,6 @@
-﻿namespace Events_API.DTOs.Events;
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace Events_API.DTOs.Events.Incoming;
 
 public class GetEventsByFiltersDto
 {
@@ -6,6 +8,6 @@ public class GetEventsByFiltersDto
     public DateTime? From { get; set; }
     public DateTime? To { get; set; }
 
-    public int Page { get; set; } = 1;
-    public int PageSize { get; set; } = 10;
+    [Range(1, 100)] public int Page { get; set; } = 1;
+    [Range(1, 100)] public int PageSize { get; set; } = 10;
 }

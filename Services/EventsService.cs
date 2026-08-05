@@ -1,13 +1,14 @@
 ﻿using Events_API.Consts;
 using Events_API.DTOs;
 using Events_API.DTOs.Events;
+using Events_API.DTOs.Events.Incoming;
 using Events_API.DTOs.Events.Results;
 using Events_API.Exceptions;
 using Events_API.Models;
 
 namespace Events_API.Services;
 
-public class EventService(IEventsRepository repository) : IEventService
+public class EventsService(IEventsRepository repository) : IEventService
 {
     public EventDto GetEventById(int id)
     {
@@ -77,6 +78,9 @@ public class EventService(IEventsRepository repository) : IEventService
 
     public GetEventsWithFiltersResult GetEventsByFilters(GetEventsByFiltersDto filters)
     {
+        if (filters.Page < 1 || filters.PageSize < 1)
+            throw new ArgumentException("Pagination parameters must be greater than or equal to 1.");
+        
         var filtered = repository.Events.AsEnumerable();
         
         if(filters.Title is not null)

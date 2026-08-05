@@ -8,7 +8,7 @@ builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi();
 builder.Services.AddControllersWithOptions();
 builder.Services.AddSwaggerGen();
-builder.Services.AddSingleton<IEventService, EventService>();  
+builder.Services.AddSingleton<IEventService, EventsService>();  
 builder.Services.AddSingleton<IEventsRepository, InMemoryEventsRepository>();
 builder.Host.UseDefaultServiceProvider((context, options) =>
 {

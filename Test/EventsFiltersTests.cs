@@ -1,5 +1,7 @@
 ﻿using Events_API.Consts;
 using Events_API.DTOs.Events;
+using Events_API.DTOs.Events.Incoming;
+using Events_API.Exceptions;
 using Events_API.Models;
 using Events_API.Services;
 using Moq;
@@ -36,14 +38,27 @@ public class EventsFiltersTests
         ];
         _repository = new InMemoryEventsRepository(_events);
         
-        _eventService = new EventService(_repository);
+        _eventService = new EventsService(_repository);
+    }
+    
+    [Theory]
+    [InlineData(-1, 10)]
+    [InlineData(1, -5)]
+    [InlineData(0, 7)]
+    public void GetEventsByFilters_WithInvalidPagination_ThrowsArgumentException(int page, int pageSize)
+    {
+        var repositoryMock = new Mock<IEventsRepository>();
+        var service = new EventsService(repositoryMock.Object);
+        var invalidFilters = new GetEventsByFiltersDto { Page = page, PageSize = pageSize };
+        
+        Assert.Throws<ArgumentException>(() => service.GetEventsByFilters(invalidFilters));
     }
     
     [Fact]
     public void CreateEvent_ShouldCallNewEventIdOnce()
     {
         var mockRepository = new Mock<IEventsRepository>();
-        var eventsService = new EventService(mockRepository.Object);
+        var eventsService = new EventsService(mockRepository.Object);
         var newEvent = new CreateEventDto()
         {
             Title = "new title",
@@ -127,24 +142,19 @@ public class EventsFiltersTests
     }
 
     [Fact]
-    public void WrongIdGetEvent_ReturnsNull()
+    public void WrongIdGetEvent_ThrowsNotFoundException()
     {
         var wrongId = 69;
         
-        var result = _eventService.GetEventById(wrongId);
-        
-        Assert.Null(result);
+        Assert.Throws<NotFoundException>(() => _eventService.GetEventById(wrongId));
     }
 
     [Fact]
-    public void WrongIdUpdateEvent_ReturnsFalseResult()
+    public void WrongIdUpdateEvent_ThrowsNotFoundException()
     {
         var wrongId = 69;
-
-        var result = _eventService.UpdateEvent(wrongId, "new title");
         
-        Assert.False(result.IsSuccess);
-        Assert.Null(result.Value);
+        Assert.Throws<NotFoundException>(() => _eventService.UpdateEvent(wrongId, "new title"));
         Assert.DoesNotContain(wrongId, _repository.Events.Select(e => e.Id));
     }
 
