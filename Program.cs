@@ -23,7 +23,6 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-app.UseExceptionHandler(); //fallback handler
 app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
 
 app.UseSwagger();
