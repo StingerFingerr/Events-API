@@ -40,7 +40,7 @@ public class EventsService(IEventsRepository repository) : IEventService
         throw new ConflictException(ErrorsMessages.InternalServerError);
     }
 
-    public EventDto UpdateEvent(int id, EventUpdateDto eventData)
+    public EventDto UpdateEvent(int id, CreateEventDto eventData)
     {
         if (ValidateEventDto(eventData, out var errorMessage))
             throw new ValidationException(errorMessage);

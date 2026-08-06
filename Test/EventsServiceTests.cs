@@ -225,7 +225,7 @@ public class EventsFiltersTests
     [Fact]
     public void UpdateEventStartDateToPast_ReturnsFalseResult()
     {
-        var dateInPast = new EventUpdateDto()
+        var dateInPast = new CreateEventDto()
         {
             Title = "new title",
             StartAt = DateTime.Now.AddDays(-1),

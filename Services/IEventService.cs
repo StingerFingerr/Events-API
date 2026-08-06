@@ -9,7 +9,7 @@ public interface IEventService
 {
     EventDto GetEventById(int id);
     EventDto CreateEvent(CreateEventDto eventData);
-    EventDto UpdateEvent(int id, EventUpdateDto eventData);
+    EventDto UpdateEvent(int id, CreateEventDto eventData);
     EventDto UpdateEvent(int id, string newTitle);
     void DeleteEvent(int id);
     PaginatedResult<EventDto> GetEventsByFilters(GetEventsByFiltersDto filters);

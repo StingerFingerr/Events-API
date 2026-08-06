@@ -58,7 +58,7 @@ public class EventsController(IEventService eventService) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    public IActionResult PutEvent(int id, EventUpdateDto newEventData)
+    public IActionResult PutEvent(int id, CreateEventDto newEventData)
     {
         var updatedEvent = eventService.UpdateEvent(id, newEventData);
         return Ok(updatedEvent);
