@@ -1,118 +1,114 @@
-﻿using Events_API.Consts;
-using Events_API.DTOs;
+﻿using System.ComponentModel.DataAnnotations;
+using Events_API.Consts;
 using Events_API.DTOs.Events;
+using Events_API.DTOs.Events.Incoming;
+using Events_API.DTOs.Events.Results;
+using Events_API.Exceptions;
 using Events_API.Models;
 
 namespace Events_API.Services;
 
-public class EventService : IEventService
+public class EventsService(IEventsRepository repository) : IEventService
 {
-    private List<Event> Events { get; }
-
-    private int NewEventId
+    public EventDto GetEventById(int id)
     {
-        get => field++;
-    } = 1;
-
-    public EventService()
-    {
-        Events =
-        [
-            new Event()
-            {
-                Id = NewEventId, Title = "event 1", 
-                StartAt = DateTime.Now.AddDays(1),
-                EndAt = DateTime.Now.AddDays(2)
-            },
-            new Event()
-            {
-                Id = NewEventId, Title = "event 2", 
-                StartAt = DateTime.Now.AddDays(5),
-                EndAt = DateTime.Now.AddDays(7)
-            },
-            new Event()
-            {
-                Id = NewEventId, Title = "event 3", 
-                StartAt = DateTime.Now.AddDays(14),
-                EndAt = DateTime.Now.AddDays(15)
-            },
-        ];
-    }
-    
-    public EventDto? GetEventByIdAsync(int id)
-    {
-        var eventFound = Events.FirstOrDefault(e => e.Id == id);
-        if (eventFound is null)
-            return null;
-        return eventFound.AsDto();
+        if (repository.Events.TryGetValue(id, out var eventData))
+            return eventData.AsDto();
+        throw new NotFoundException();
     }
 
-
-    public Result<EventDto> CreateEventAsync(CreateEventDto eventData)
+    public EventDto CreateEvent(CreateEventDto eventData)
     {
-        if (ValidateEventDto(eventData, out var errorMessage)) 
-            return Result<EventDto>.Failure(errorMessage);
-        if (EventExistsByTitle(eventData.Title))
-            return Result<EventDto>.Failure(ErrorsMessages.EventAlreadyExists);
+        if (ValidateEventDto(eventData, out var errorMessage))
+            throw new ValidationException(errorMessage);
+
+        if(EventExistsByTitle(eventData.Title))
+            throw new ConflictException(ErrorsMessages.EventAlreadyExists);
+
+        var newEvent = new Event(repository.NewEventId, eventData.Title, eventData.Description, eventData.StartAt,
+            eventData.EndAt);
         
-        var newEvent = new Event()
+        if (repository.Events.TryAdd(newEvent.Id, newEvent))
+            return newEvent.AsDto();
+        
+        throw new ConflictException(ErrorsMessages.InternalServerError);
+    }
+
+    public EventDto UpdateEvent(int id, CreateEventDto eventData)
+    {
+        if (ValidateEventDto(eventData, out var errorMessage))
+            throw new ValidationException(errorMessage);
+
+        if (repository.Events.TryGetValue(id, out var eventFound))
         {
-            Id = NewEventId,
-            Title = eventData.Title,
-            StartAt = eventData.StartAt,
-            EndAt = eventData.EndAt,
-            Description = eventData.Description
-        };
+            eventFound.Title = eventData.Title;
+            eventFound.StartAt = eventData.StartAt;
+            eventFound.EndAt = eventData.EndAt;
+            eventFound.Description = eventData.Description;
+            return eventFound.AsDto();
+        }
 
-        Events.Add(newEvent);
-
-        return Result<EventDto>.Success(newEvent.AsDto());
+        throw new NotFoundException();
     }
 
-    public List<EventDto> GetAllEventsAsync()
+    public EventDto UpdateEvent(int id, string newTitle)
     {
-        return Events.Select(e => e.AsDto()).ToList();
+        if(EventExistsByTitle(newTitle))
+            throw new ConflictException(ErrorsMessages.EventAlreadyExists);
+        
+        if (repository.Events.TryGetValue(id, out var eventFound))
+        {
+            eventFound.Title = newTitle;
+            return eventFound.AsDto();
+        }
+
+        throw new NotFoundException();
     }
 
-    public Result<EventDto> UpdateEventAsync(int id, EventUpdateDto eventData)
+    public void DeleteEvent(int id)
     {
-        if (ValidateEventDto(eventData, out var errorMessage)) 
-            return Result<EventDto>.Failure(errorMessage);
-        var eventFound = Events.FirstOrDefault(e => e.Id == id);
-        if (eventFound is null)
-            return Result<EventDto>.Failure(ErrorsMessages.EventNotFound);
-        eventFound.Title = eventData.Title;
-        eventFound.StartAt = eventData.StartAt;
-        eventFound.EndAt = eventData.EndAt;
-        eventFound.Description = eventData.Description;
-        return Result<EventDto>.Success(eventFound.AsDto());
+        if(repository.Events.Remove(id, out _) is false)
+            throw new NotFoundException();
     }
 
-    public Result<EventDto> UpdateEventAsync(int id, string newTitle)
+    public PaginatedResult<EventDto> GetEventsByFilters(GetEventsByFiltersDto filters)
     {
-        var eventFound = Events.FirstOrDefault(e => e.Id == id);
-        if (eventFound is null)
-            return Result<EventDto>.Failure(ErrorsMessages.EventNotFound);
-        eventFound.Title = newTitle;
-        return Result<EventDto>.Success(eventFound.AsDto());
+        if (filters.Page < 1 || filters.PageSize < 1)
+            throw new ValidationException("Pagination parameters must be greater than or equal to 1.");
+
+        var filtered = repository.Events.AsEnumerable();
+
+        if (filters.Title is not null)
+            filtered = filtered.Where(e => e.Value.Title.Contains(filters.Title, StringComparison.OrdinalIgnoreCase));
+        if (filters.From is not null)
+            filtered = filtered.Where(e => e.Value.StartAt >= filters.From);
+        if (filters.To is not null)
+            filtered = filtered.Where(e => e.Value.StartAt <= filters.To);
+
+        var items = filtered
+            .OrderBy(e => e.Value.StartAt)
+            .Skip((filters.Page - 1) * filters.PageSize)
+            .Take(filters.PageSize)
+            .Select(e => e.Value.AsDto())
+            .ToList();
+
+        var totalItems = filtered.Count();
+        var totalPages = (int)Math.Ceiling((double)totalItems / filters.PageSize);
+
+        return new PaginatedResult<EventDto>(items, filters.Page, filters.PageSize, totalItems, totalPages);
     }
 
-    public Result DeleteEventAsync(int id)
-    {
-        var success = Events.RemoveAll(e => e.Id == id) != 0;
-        if (success)
-            return Result.Success();
-        return Result.Failure(ErrorsMessages.EventNotFound);
-    }
-
-    private bool EventExistsByTitle(string title)
-    {
-        return Events.Any(e =>
-            string.Equals(e.Title, title, StringComparison.OrdinalIgnoreCase));
-    }
+    private bool EventExistsByTitle(string title) => 
+        repository.Events.Any(e => e.Value.Title.Equals(title, StringComparison.OrdinalIgnoreCase));
 
     private static bool ValidateEventDto(CreateEventDto eventData, out string errorMessage)
     {
+        if (eventData.Title.Length <= 3)
+        {
+            errorMessage = ErrorsMessages.EventTitleIsShort;
+            return true;
+        }
+
         if (eventData.StartAt < DateTime.Now)
         {
             errorMessage = ErrorsMessages.CannotCreateEventInThePast;
@@ -121,7 +117,7 @@ public class EventService : IEventService
 
         if (eventData.StartAt >= eventData.EndAt)
         {
-            errorMessage = ErrorsMessages.CannotCreateEventEndsAfterStarts;
+            errorMessage = ErrorsMessages.CannotCreateEventWithStartLaterThenEnd;
             return true;
         }
 

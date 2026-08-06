@@ -1,5 +1,6 @@
-﻿using Events_API.Consts;
-using Events_API.DTOs.Events;
+﻿using Events_API.DTOs.Events;
+using Events_API.DTOs.Events.Incoming;
+using Events_API.DTOs.Events.Results;
 using Events_API.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -15,109 +16,60 @@ public class EventsController(IEventService eventService) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public IActionResult GetEvent(int id)
     {
-        var result = eventService.GetEventByIdAsync(id);
-        if(result is null)
-            return NotFound();
-        return  Ok(result);
+        var eventFound = eventService.GetEventById(id);
+        return Ok(eventFound);
     }
 
     [HttpGet]
     [ProducesResponseType<List<EventDto>>(StatusCodes.Status200OK)]
-    public IActionResult GetAllEvents()
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public IActionResult GetEvents([FromQuery] GetEventsByFiltersDto filters)
     {
-        var result = eventService.GetAllEventsAsync();
-        return Ok(result);
+        var eventsByFilters = eventService.GetEventsByFilters(filters);
+        return Ok(eventsByFilters);
     }
-    
+
     [HttpPost]
     [ProducesResponseType(typeof(EventDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public IActionResult PostEvent([FromBody] CreateEventDto eventData)
     {
-        var result = eventService.CreateEventAsync(eventData);
-        if(result.IsSuccess)
-            return CreatedAtAction(
-                nameof(GetEvent), 
-                new { id = result.Value!.Id }, 
-                result.Value);
-        return BadRequest(result.ErrorMessage);
+        var createdEvent = eventService.CreateEvent(eventData);
+        return CreatedAtAction(
+            nameof(GetEvent),
+            new { id = createdEvent.Id },
+            createdEvent);
     }
-    
+
     [HttpPatch("{id:int}")]
     [ProducesResponseType(typeof(EventDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public IActionResult PatchEvent(int id, [FromBody] UpdateTitleDto dto)
     {
-        var result = eventService.UpdateEventAsync(id, dto.Title);
-
-        if (!result.IsSuccess)
-        {
-            if (string.Equals(result.ErrorMessage, ErrorsMessages.EventNotFound, StringComparison.Ordinal))
-                return NotFound();
-
-            return BadRequest(new ProblemDetails
-            {
-                Type = "https://ietf.org",
-                Title = ErrorsMessages.CannotUpdateEventTitle,
-                Status = StatusCodes.Status400BadRequest,
-                Detail = result.ErrorMessage,
-                Instance = HttpContext.Request.Path
-            });
-        }
-
-        return Ok(result.Value);
+        var updatedEvent = eventService.UpdateEvent(id, dto.Title);
+        return Ok(updatedEvent);
     }
 
     [HttpPut("{id:int}")]
     [ProducesResponseType(typeof(EventDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public IActionResult PutEvent(int id, EventUpdateDto newEventData)
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public IActionResult PutEvent(int id, CreateEventDto newEventData)
     {
-        var result = eventService.UpdateEventAsync(id, newEventData);
-
-        if (result.IsSuccess is false)
-        {
-            if (string.Equals(result.ErrorMessage, ErrorsMessages.EventNotFound, StringComparison.Ordinal))
-                return NotFound();
-
-            return BadRequest(new ProblemDetails
-            {
-                Type = "https://ietf.org",
-                Title = ErrorsMessages.CannotUpdateEventTitle,
-                Status = StatusCodes.Status400BadRequest,
-                Detail = result.ErrorMessage,
-                Instance = HttpContext.Request.Path
-            });
-        }
-
-        return Ok(result.Value);
+        var updatedEvent = eventService.UpdateEvent(id, newEventData);
+        return Ok(updatedEvent);
     }
 
     [HttpDelete("{id:int}")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)] 
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)] 
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)] 
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public IActionResult DeleteEvent(int id)
     {
-        var result = eventService.DeleteEventAsync(id);
-
-        if (!result.IsSuccess)
-        {
-            if (string.Equals(result.ErrorMessage, ErrorsMessages.EventNotFound, StringComparison.Ordinal))
-                return NotFound();
-
-            return BadRequest(new ProblemDetails
-            {
-                Type = "https://ietf.org",
-                Title = ErrorsMessages.CannotDeleteEvent,
-                Status = StatusCodes.Status400BadRequest,
-                Detail = result.ErrorMessage,
-                Instance = HttpContext.Request.Path
-            });
-        }
-
-        return NoContent(); 
+        eventService.DeleteEvent(id);
+        return NoContent();
     }
 }

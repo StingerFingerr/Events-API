@@ -1,14 +1,16 @@
 ﻿using Events_API.DTOs;
 using Events_API.DTOs.Events;
+using Events_API.DTOs.Events.Incoming;
+using Events_API.DTOs.Events.Results;
 
 namespace Events_API.Services;
 
 public interface IEventService
 {
-    EventDto? GetEventByIdAsync(int id);
-    List<EventDto> GetAllEventsAsync();
-    Result<EventDto> CreateEventAsync(CreateEventDto eventData);
-    Result<EventDto> UpdateEventAsync(int id, EventUpdateDto eventData);
-    Result<EventDto> UpdateEventAsync(int id, string newTitle);
-    Result DeleteEventAsync(int id); 
+    EventDto GetEventById(int id);
+    EventDto CreateEvent(CreateEventDto eventData);
+    EventDto UpdateEvent(int id, CreateEventDto eventData);
+    EventDto UpdateEvent(int id, string newTitle);
+    void DeleteEvent(int id);
+    PaginatedResult<EventDto> GetEventsByFilters(GetEventsByFiltersDto filters);
 }
