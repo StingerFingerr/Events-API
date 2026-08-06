@@ -57,23 +57,30 @@ public class EventsFiltersTests
 
         Assert.Throws<ValidationException>(() => service.GetEventsByFilters(invalidFilters));
     }
-
+    
     [Fact]
-    public void CreateEvent_ShouldCallNewEventIdOnce()
+    public void CreateEvent_ShouldSaveNewEventInRepositoryWithUniqueId()
     {
         var mockRepository = new Mock<IEventsRepository>();
         var eventsService = new EventsService(mockRepository.Object);
-        var newEvent = new CreateEventDto()
+    
+        var newEventDto = new CreateEventDto()
         {
-            Title = "new title",
-            StartAt = DateTime.Now.AddDays(1),
-            EndAt = DateTime.Now.AddDays(7),
+            Title = "test title",
+            StartAt = DateTime.Now.AddDays(3),
+            EndAt = DateTime.Now.AddDays(4),
         };
-        mockRepository.Setup<ConcurrentDictionary<int, Event>>(r => r.Events).Returns(_events);
+    
+        int expectedId = 777;
+        mockRepository.Setup(r => r.NewEventId).Returns(expectedId);
+        mockRepository.Setup(r => r.Events).Returns(_events);
 
-        eventsService.CreateEvent(newEvent);
+        eventsService.CreateEvent(newEventDto);
 
-        mockRepository.Verify(r => r.NewEventId, Times.Once);
+        bool containsSavedEvent = _events.ContainsKey(expectedId);
+    
+        Assert.True(containsSavedEvent, "Событие не было добавлено в репозиторий под сгенерированным Id");
+        Assert.Equal("test title", _events[expectedId].Title);
     }
 
     [Fact]
