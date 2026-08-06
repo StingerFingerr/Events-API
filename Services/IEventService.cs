@@ -12,5 +12,5 @@ public interface IEventService
     EventDto UpdateEvent(int id, EventUpdateDto eventData);
     EventDto UpdateEvent(int id, string newTitle);
     void DeleteEvent(int id);
-    GetEventsWithFiltersResult GetEventsByFilters(GetEventsByFiltersDto filters);
+    PaginatedResult<EventDto> GetEventsByFilters(GetEventsByFiltersDto filters);
 }

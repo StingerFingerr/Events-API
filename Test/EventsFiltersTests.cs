@@ -84,7 +84,7 @@ public class EventsFiltersTests
         var notExpectedResult = "rap concert";
         var filterByTitle = new GetEventsByFiltersDto() { Title = searchTitle };
 
-        var result = _eventService.GetEventsByFilters(filterByTitle).Events;
+        var result = _eventService.GetEventsByFilters(filterByTitle).Items;
 
         Assert.DoesNotContain(notExpectedResult, result.Select(events => events.Title));
         Assert.Equal(expectedEvents, result.Select(events => events.Title));
@@ -98,9 +98,9 @@ public class EventsFiltersTests
         var filter = new GetEventsByFiltersDto() { From = searchStartDate };
 
         var result = _eventService.GetEventsByFilters(filter);
-        var eventFiltered = result.Events.FirstOrDefault();
+        var eventFiltered = result.Items.FirstOrDefault();
 
-        Assert.Single(result.Events);
+        Assert.Single(result.Items);
         Assert.NotNull(eventFiltered);
         Assert.Equal(expectedEventId, eventFiltered.Id);
     }
@@ -116,7 +116,7 @@ public class EventsFiltersTests
         var result = _eventService.GetEventsByFilters(filter);
         
         Assert.Equal(2, result.TotalItems);
-        Assert.Collection(result.Events,
+        Assert.Collection(result.Items,
             firstElement =>
             {
                 Assert.Equal(expectedFirst.Id, firstElement.Id);
@@ -144,9 +144,9 @@ public class EventsFiltersTests
         
         var result = _eventService.GetEventsByFilters(filter);
         
-        Assert.Equal(result.Events.First().Id, expectedEventId);
+        Assert.Equal(result.Items.First().Id, expectedEventId);
     }
-
+    
     [Fact]
     public void SuccessCreateEvent_AddsEventInRepository()
     {

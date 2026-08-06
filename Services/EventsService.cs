@@ -77,7 +77,7 @@ public class EventsService(IEventsRepository repository) : IEventService
             throw new NotFoundException();
     }
 
-    public GetEventsWithFiltersResult GetEventsByFilters(GetEventsByFiltersDto filters)
+    public PaginatedResult<EventDto> GetEventsByFilters(GetEventsByFiltersDto filters)
     {
         if (filters.Page < 1 || filters.PageSize < 1)
             throw new ValidationException("Pagination parameters must be greater than or equal to 1.");
@@ -101,7 +101,7 @@ public class EventsService(IEventsRepository repository) : IEventService
         var totalItems = filtered.Count();
         var totalPages = (int)Math.Ceiling((double)totalItems / filters.PageSize);
 
-        return new GetEventsWithFiltersResult(items, filters.Page, filters.PageSize, totalItems, totalPages);
+        return new PaginatedResult<EventDto>(items, filters.Page, filters.PageSize, totalItems, totalPages);
     }
 
     private bool EventExistsByTitle(string title) => 
