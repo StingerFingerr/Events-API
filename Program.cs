@@ -5,7 +5,6 @@ using Events_API.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddProblemDetails();
-builder.Services.AddOpenApi();
 builder.Services.AddControllersWithOptions();
 builder.Services.AddSwaggerGen();
 builder.Services.AddSingleton<IEventService, EventsService>();
@@ -17,11 +16,6 @@ builder.Host.UseDefaultServiceProvider((context, options) =>
 });
 
 var app = builder.Build();
-
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-}
 
 app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
 
