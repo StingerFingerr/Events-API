@@ -1,4 +1,5 @@
 ﻿using Events_API.DTOs.Events;
+using Events_API.DTOs.Events.Results;
 
 namespace Events_API.Models;
 
