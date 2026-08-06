@@ -20,25 +20,9 @@ public class EventsFiltersTests
     {
         _events = new ConcurrentDictionary<int, Event>()
         {
-            [1] = new Event()
-            {
-                Id = 1, Title = "rock festival",
-                StartAt = DateTime.Now.AddDays(1),
-                EndAt = DateTime.Now.AddDays(2)
-            },
-            [2] = new Event()
-            {
-                Id = 2, Title = "rap concert",
-                StartAt = DateTime.Now.AddDays(5),
-                EndAt = DateTime.Now.AddDays(7)
-            },
-            [3] = new Event()
-            {
-                Id = 3, Title = "food festival",
-                StartAt = DateTime.Now.AddDays(14),
-                EndAt = DateTime.Now.AddDays(15)
-            }
-
+            [1] = new(1, "rock festival",DateTime.Now.AddDays(1),DateTime.Now.AddDays(2)),
+            [2] = new(2, "rap concert", DateTime.Now.AddDays(5),DateTime.Now.AddDays(7)),
+            [3] = new(3, "food festival",DateTime.Now.AddDays(14),DateTime.Now.AddDays(15))
         };
         _repository = new InMemoryEventsRepository(_events);
 

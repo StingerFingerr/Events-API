@@ -24,15 +24,9 @@ public class EventsService(IEventsRepository repository) : IEventService
 
         if(EventExistsByTitle(eventData.Title))
             throw new ConflictException(ErrorsMessages.EventAlreadyExists);
-        
-        var newEvent = new Event()
-        {
-            Id = repository.NewEventId,
-            Title = eventData.Title,
-            StartAt = eventData.StartAt,
-            EndAt = eventData.EndAt,
-            Description = eventData.Description
-        };
+
+        var newEvent = new Event(repository.NewEventId, eventData.Title, eventData.Description, eventData.StartAt,
+            eventData.EndAt);
         
         if (repository.Events.TryAdd(newEvent.Id, newEvent))
             return newEvent.AsDto();
@@ -123,7 +117,7 @@ public class EventsService(IEventsRepository repository) : IEventService
 
         if (eventData.StartAt >= eventData.EndAt)
         {
-            errorMessage = ErrorsMessages.CannotCreateEventEndsAfterStarts;
+            errorMessage = ErrorsMessages.CannotCreateEventWithStartLaterThenEnd;
             return true;
         }
 

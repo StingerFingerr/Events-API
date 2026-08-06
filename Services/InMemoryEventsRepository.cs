@@ -34,24 +34,9 @@ public class InMemoryEventsRepository : IEventsRepository
         
         Events = new ConcurrentDictionary<int, Event>()
         {
-            [NewEventId] = new Event()
-            {
-                Id = LastEventId, Title = "rock festival",
-                StartAt = DateTime.Now.AddDays(1),
-                EndAt = DateTime.Now.AddDays(2)
-            },
-            [NewEventId] = new Event()
-            {
-                Id = LastEventId, Title = "rap concert",
-                StartAt = DateTime.Now.AddDays(5),
-                EndAt = DateTime.Now.AddDays(7)
-            },
-            [NewEventId] = new Event()
-            {
-                Id = LastEventId, Title = "food festival",
-                StartAt = DateTime.Now.AddDays(14),
-                EndAt = DateTime.Now.AddDays(15)
-            }
+            [NewEventId] = new Event(LastEventId, "rock festival",DateTime.Now.AddDays(1),DateTime.Now.AddDays(2)),
+            [NewEventId] = new Event(LastEventId, "rap concert",DateTime.Now.AddDays(5),DateTime.Now.AddDays(7)),
+            [NewEventId] = new Event(LastEventId, "food festival", DateTime.Now.AddDays(14),  DateTime.Now.AddDays(15))
         };
     }
 }
