@@ -7,10 +7,10 @@ namespace Events_API.Services;
 
 public interface IEventService
 {
-    EventDto GetEventById(int id);
+    EventDto GetEventById(Guid id);
     EventDto CreateEvent(CreateEventDto eventData);
-    EventDto UpdateEvent(int id, CreateEventDto eventData);
-    EventDto UpdateEvent(int id, string newTitle);
-    void DeleteEvent(int id);
+    EventDto UpdateEvent(Guid id, CreateEventDto eventData);
+    EventDto UpdateEvent(Guid id, string newTitle);
+    void DeleteEvent(Guid id);
     PaginatedResult<EventDto> GetEventsByFilters(GetEventsByFiltersDto filters);
 }

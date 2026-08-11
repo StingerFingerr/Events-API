@@ -10,7 +10,7 @@ namespace Events_API.Services;
 
 public class EventsService(IEventsRepository repository) : IEventService
 {
-    public EventDto GetEventById(int id)
+    public EventDto GetEventById(Guid id)
     {
         if (repository.Events.TryGetValue(id, out var eventData))
             return eventData.AsDto();
@@ -34,7 +34,7 @@ public class EventsService(IEventsRepository repository) : IEventService
         throw new ConflictException(ErrorsMessages.InternalServerError);
     }
 
-    public EventDto UpdateEvent(int id, CreateEventDto eventData)
+    public EventDto UpdateEvent(Guid id, CreateEventDto eventData)
     {
         if (ValidateEventDto(eventData, out var errorMessage))
             throw new ValidationException(errorMessage);
@@ -51,7 +51,7 @@ public class EventsService(IEventsRepository repository) : IEventService
         throw new NotFoundException();
     }
 
-    public EventDto UpdateEvent(int id, string newTitle)
+    public EventDto UpdateEvent(Guid id, string newTitle)
     {
         if(EventExistsByTitle(newTitle))
             throw new ConflictException(ErrorsMessages.EventAlreadyExists);
@@ -65,7 +65,7 @@ public class EventsService(IEventsRepository repository) : IEventService
         throw new NotFoundException();
     }
 
-    public void DeleteEvent(int id)
+    public void DeleteEvent(Guid id)
     {
         if(repository.Events.Remove(id, out _) is false)
             throw new NotFoundException();

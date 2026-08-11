@@ -11,10 +11,10 @@ namespace Events_API.Controllers;
 [Produces("application/json")]
 public class EventsController(IEventService eventService) : ControllerBase
 {
-    [HttpGet("{id:int}", Name = nameof(GetEvent))]
+    [HttpGet("{id:guid}", Name = nameof(GetEvent))]
     [ProducesResponseType(typeof(EventDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public IActionResult GetEvent(int id)
+    public IActionResult GetEvent(Guid id)
     {
         var eventFound = eventService.GetEventById(id);
         return Ok(eventFound);
@@ -42,32 +42,32 @@ public class EventsController(IEventService eventService) : ControllerBase
             createdEvent);
     }
 
-    [HttpPatch("{id:int}")]
+    [HttpPatch("{id:guid}")]
     [ProducesResponseType(typeof(EventDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    public IActionResult PatchEvent(int id, [FromBody] UpdateTitleDto dto)
+    public IActionResult PatchEvent(Guid id, [FromBody] UpdateTitleDto dto)
     {
         var updatedEvent = eventService.UpdateEvent(id, dto.Title);
         return Ok(updatedEvent);
     }
 
-    [HttpPut("{id:int}")]
+    [HttpPut("{id:guid}")]
     [ProducesResponseType(typeof(EventDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    public IActionResult PutEvent(int id, CreateEventDto newEventData)
+    public IActionResult PutEvent(Guid id, CreateEventDto newEventData)
     {
         var updatedEvent = eventService.UpdateEvent(id, newEventData);
         return Ok(updatedEvent);
     }
 
-    [HttpDelete("{id:int}")]
+    [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public IActionResult DeleteEvent(int id)
+    public IActionResult DeleteEvent(Guid id)
     {
         eventService.DeleteEvent(id);
         return NoContent();
