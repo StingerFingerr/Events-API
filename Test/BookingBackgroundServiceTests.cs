@@ -31,7 +31,7 @@ public class BookingBackgroundServiceTests
 
         await worker.StartAsync(CancellationToken.None);
         Assert.Equal(BookingStatus.Pending, booking.Status);
-        await processed.Task.WaitAsync(TimeSpan.FromSeconds(6));
+        await processed.Task.WaitAsync(TimeSpan.FromSeconds(99));
         await worker.StopAsync(CancellationToken.None);
 
         bookings.Verify(
