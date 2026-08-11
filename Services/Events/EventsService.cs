@@ -6,7 +6,7 @@ using Events_API.DTOs.Events.Results;
 using Events_API.Exceptions;
 using Events_API.Models;
 
-namespace Events_API.Services;
+namespace Events_API.Services.Events;
 
 public class EventsService(IEventsRepository repository) : IEventService
 {

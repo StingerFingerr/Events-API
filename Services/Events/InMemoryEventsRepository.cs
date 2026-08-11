@@ -1,7 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using Events_API.Models;
 
-namespace Events_API.Services;
+namespace Events_API.Services.Events;
 
 public class InMemoryEventsRepository : IEventsRepository
 {

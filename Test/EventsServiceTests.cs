@@ -6,6 +6,7 @@ using Events_API.DTOs.Events.Incoming;
 using Events_API.Exceptions;
 using Events_API.Models;
 using Events_API.Services;
+using Events_API.Services.Events;
 using Moq;
 
 namespace Test;
