@@ -22,15 +22,15 @@ public class EventsService(IEventsRepository repository) : IEventService
         if (ValidateEventDto(eventData, out var errorMessage))
             throw new ValidationException(errorMessage);
 
-        if(EventExistsByTitle(eventData.Title))
+        if (EventExistsByTitle(eventData.Title))
             throw new ConflictException(ErrorsMessages.EventAlreadyExists);
 
         var newEvent = new Event(repository.NewEventId, eventData.Title, eventData.Description, eventData.StartAt,
             eventData.EndAt);
-        
+
         if (repository.Events.TryAdd(newEvent.Id, newEvent))
             return newEvent.AsDto();
-        
+
         throw new ConflictException(ErrorsMessages.InternalServerError);
     }
 
@@ -53,9 +53,9 @@ public class EventsService(IEventsRepository repository) : IEventService
 
     public EventDto UpdateEvent(Guid id, string newTitle)
     {
-        if(EventExistsByTitle(newTitle))
+        if (EventExistsByTitle(newTitle))
             throw new ConflictException(ErrorsMessages.EventAlreadyExists);
-        
+
         if (repository.Events.TryGetValue(id, out var eventFound))
         {
             eventFound.Title = newTitle;
@@ -67,7 +67,7 @@ public class EventsService(IEventsRepository repository) : IEventService
 
     public void DeleteEvent(Guid id)
     {
-        if(repository.Events.Remove(id, out _) is false)
+        if (repository.Events.Remove(id, out _) is false)
             throw new NotFoundException();
     }
 
@@ -98,7 +98,7 @@ public class EventsService(IEventsRepository repository) : IEventService
         return new PaginatedResult<EventDto>(items, filters.Page, filters.PageSize, totalItems, totalPages);
     }
 
-    private bool EventExistsByTitle(string title) => 
+    private bool EventExistsByTitle(string title) =>
         repository.Events.Any(e => e.Value.Title.Equals(title, StringComparison.OrdinalIgnoreCase));
 
     private static bool ValidateEventDto(CreateEventDto eventData, out string errorMessage)

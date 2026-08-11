@@ -15,7 +15,7 @@ public class InMemoryEventsRepository : IEventsRepository
             Events = events;
             return;
         }
-        
+
         var initialEvents = new[]
         {
             new Event(Guid.NewGuid(), "rock festival", DateTime.Now.AddDays(1), DateTime.Now.AddDays(2)),

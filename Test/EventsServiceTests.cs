@@ -25,21 +25,21 @@ public class EventsFiltersTests
 
         Assert.Throws<ValidationException>(() => service.GetEventsByFilters(invalidFilters));
     }
-    
+
     [Fact]
     public void CreateEvent_ShouldSaveNewEventInRepositoryWithUniqueId()
     {
         var events = new ConcurrentDictionary<Guid, Event>();
         var mockRepository = new Mock<IEventsRepository>();
         var eventsService = new EventsService(mockRepository.Object);
-    
+
         var newEventDto = new CreateEventDto()
         {
             Title = "test title",
             StartAt = DateTime.Now.AddDays(3),
             EndAt = DateTime.Now.AddDays(4),
         };
-    
+
         var expectedId = Guid.NewGuid();
         mockRepository.Setup(r => r.NewEventId).Returns(expectedId);
         mockRepository.Setup(r => r.Events).Returns(events);
@@ -47,7 +47,7 @@ public class EventsFiltersTests
         eventsService.CreateEvent(newEventDto);
 
         bool containsSavedEvent = events.ContainsKey(expectedId);
-    
+
         Assert.True(containsSavedEvent, "Событие было добавлено в репозиторий под сгенерированным Id");
         Assert.Equal("test title", events[expectedId].Title);
     }
@@ -91,9 +91,9 @@ public class EventsFiltersTests
         var expectedFirst = events[EventIds.RockFestival];
         var expectedSecond = events[EventIds.RapConcert];
         var filter = new GetEventsByFiltersDto() { To = searchEndDate };
-        
+
         var result = eventService.GetEventsByFilters(filter);
-        
+
         Assert.Equal(2, result.TotalItems);
         Assert.Collection(result.Items,
             firstElement =>
@@ -121,12 +121,12 @@ public class EventsFiltersTests
             From = from,
             To = to
         };
-        
+
         var result = eventService.GetEventsByFilters(filter);
-        
+
         Assert.Equal(Guid.Parse(expectedEventId), result.Items.First().Id);
     }
-    
+
     [Fact]
     public void SuccessCreateEvent_AddsEventInRepository()
     {
@@ -212,7 +212,7 @@ public class EventsFiltersTests
             EndAt = DateTime.Now.AddDays(7),
         };
         var eventId = EventIds.RockFestival;
-        
+
         Assert.Throws<ValidationException>(() => eventService.UpdateEvent(eventId, dateInPast));
     }
 

@@ -15,7 +15,7 @@ public class Event
     {
         ValidateTitle(title);
         ValidateDates(startAt, endAt);
-        
+
         Id = id;
         Title = title;
         Description = description;
@@ -27,7 +27,7 @@ public class Event
     {
         ValidateTitle(title);
         ValidateDates(startAt, endAt);
-        
+
         Id = id;
         Title = title;
         StartAt = startAt;
