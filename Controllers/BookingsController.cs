@@ -1,3 +1,4 @@
+using Events_API.Background_tasks.Booking;
 using Events_API.DTOs.Bookings.Results;
 using Events_API.Services.Bookings;
 using Microsoft.AspNetCore.Mvc;
@@ -7,7 +8,7 @@ namespace Events_API.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Produces("application/json")]
-public class BookingsController(IBookingService bookingService) : ControllerBase
+public class BookingsController(IBookingService bookingService, IBookingTaskQueue bookingTaskQueue, ILogger<BookingsController> logger) : ControllerBase
 {
     [HttpGet("{id:guid}", Name = nameof(GetBooking))]
     [ProducesResponseType(typeof(BookingDto), StatusCodes.Status200OK)]
@@ -25,6 +26,13 @@ public class BookingsController(IBookingService bookingService) : ControllerBase
     public async Task<ActionResult<BookingDto>> PostBooking(Guid eventId)
     {
         var booking = await bookingService.CreateBookingAsync(eventId);
+        bookingTaskQueue.Enqueue(new BookingTask
+        {
+            BookingId = booking.Id,
+            EventId = booking.EventId
+        });
+        logger.LogInformation("Booking {BookingId} was queued for processing", booking.Id);
+
         var bookingDto = BookingDto.FromBooking(booking);
 
         return AcceptedAtAction(nameof(GetBooking), new { id = bookingDto.Id }, bookingDto);

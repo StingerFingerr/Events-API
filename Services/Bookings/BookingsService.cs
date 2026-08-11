@@ -32,4 +32,15 @@ public class BookingsService(IBookingsRepository bookingsRepository, IEventsRepo
 
         throw new NotFoundException();
     }
+
+    public Task UpdateBookingStatusAsync(Guid bookingId, BookingStatus status)
+    {
+        if (!bookingsRepository.Bookings.TryGetValue(bookingId, out var booking))
+            throw new NotFoundException();
+
+        booking.Status = status;
+        booking.ProcessedAt = DateTime.Now;
+
+        return Task.CompletedTask;
+    }
 }
