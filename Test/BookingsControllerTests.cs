@@ -17,6 +17,7 @@ public class BookingsControllerTests
         {
             Id = Guid.NewGuid(),
             EventId = Guid.NewGuid(),
+            CreatedAt = DateTime.UtcNow,
             Status = BookingStatus.Pending
         };
         var service = new Mock<IBookingService>();
@@ -32,6 +33,8 @@ public class BookingsControllerTests
         Assert.Equal(booking.Id, result.RouteValues!["id"]);
         Assert.Equal(booking.Id, dto.Id);
         Assert.Equal(booking.EventId, dto.EventId);
+        Assert.Equal(booking.CreatedAt, dto.CreatedAt);
+        Assert.Equal(booking.ProcessedAt, dto.ProcessedAt);
         Assert.Equal(BookingStatus.Pending, dto.Status);
     }
 
@@ -42,6 +45,8 @@ public class BookingsControllerTests
         {
             Id = Guid.NewGuid(),
             EventId = Guid.NewGuid(),
+            CreatedAt = DateTime.UtcNow,
+            ProcessedAt = DateTime.UtcNow,
             Status = BookingStatus.Confirmed
         };
         var service = new Mock<IBookingService>();
@@ -54,6 +59,8 @@ public class BookingsControllerTests
         var dto = Assert.IsType<BookingDto>(result.Value);
         Assert.Equal(booking.Id, dto.Id);
         Assert.Equal(booking.EventId, dto.EventId);
+        Assert.Equal(booking.CreatedAt, dto.CreatedAt);
+        Assert.Equal(booking.ProcessedAt, dto.ProcessedAt);
         Assert.Equal(BookingStatus.Confirmed, dto.Status);
     }
 }
