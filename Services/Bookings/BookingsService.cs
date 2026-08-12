@@ -1,10 +1,15 @@
 using Events_API.Exceptions;
+using Events_API.Background_tasks.Booking;
 using Events_API.Models;
 using Events_API.Services.Events;
 
 namespace Events_API.Services.Bookings;
 
-public class BookingsService(IBookingsRepository bookingsRepository, IEventsRepository eventsRepository) : IBookingService
+public class BookingsService(
+    IBookingsRepository bookingsRepository,
+    IEventsRepository eventsRepository,
+    IBookingTaskQueue bookingTaskQueue,
+    ILogger<BookingsService> logger) : IBookingService
 {
     public Task<Booking> CreateBookingAsync(Guid eventId)
     {
@@ -15,12 +20,19 @@ public class BookingsService(IBookingsRepository bookingsRepository, IEventsRepo
         {
             Id = bookingsRepository.NewBookingId,
             EventId = eventId,
-            CreatedAt = DateTime.Now,
+            CreatedAt = DateTime.UtcNow,
             Status = BookingStatus.Pending
         };
 
         if (!bookingsRepository.Bookings.TryAdd(booking.Id, booking))
             throw new ConflictException("Unable to create booking.");
+
+        bookingTaskQueue.Enqueue(new BookingTask
+        {
+            BookingId = booking.Id,
+            EventId = booking.EventId
+        });
+        logger.LogInformation("Booking {BookingId} was queued for processing", booking.Id);
 
         return Task.FromResult(booking);
     }
@@ -39,7 +51,7 @@ public class BookingsService(IBookingsRepository bookingsRepository, IEventsRepo
             throw new NotFoundException();
 
         booking.Status = status;
-        booking.ProcessedAt = DateTime.Now;
+        booking.ProcessedAt = DateTime.UtcNow;
 
         return Task.CompletedTask;
     }

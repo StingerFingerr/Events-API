@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Events_API.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/events")]
 [Produces("application/json")]
 public class EventsController(IEventService eventService) : ControllerBase
 {

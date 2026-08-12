@@ -18,9 +18,9 @@ public class InMemoryEventsRepository : IEventsRepository
 
         var initialEvents = new[]
         {
-            new Event(Guid.NewGuid(), "rock festival", DateTime.Now.AddDays(1), DateTime.Now.AddDays(2)),
-            new Event(Guid.NewGuid(), "rap concert", DateTime.Now.AddDays(5), DateTime.Now.AddDays(7)),
-            new Event(Guid.NewGuid(), "food festival", DateTime.Now.AddDays(14), DateTime.Now.AddDays(15))
+            new Event(Guid.NewGuid(), "rock festival", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(2)),
+            new Event(Guid.NewGuid(), "rap concert", DateTime.UtcNow.AddDays(5), DateTime.UtcNow.AddDays(7)),
+            new Event(Guid.NewGuid(), "food festival", DateTime.UtcNow.AddDays(14), DateTime.UtcNow.AddDays(15))
         };
         Events = new ConcurrentDictionary<Guid, Event>(initialEvents.ToDictionary(eventData => eventData.Id));
     }

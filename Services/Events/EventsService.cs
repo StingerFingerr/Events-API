@@ -109,7 +109,7 @@ public class EventsService(IEventsRepository repository) : IEventService
             return true;
         }
 
-        if (eventData.StartAt < DateTime.Now)
+        if (eventData.StartAt < DateTime.UtcNow)
         {
             errorMessage = ErrorsMessages.CannotCreateEventInThePast;
             return true;
