@@ -1,3 +1,3 @@
 ﻿namespace Events_API.DTOs.Events.Results;
 
-public record EventDto(int Id, string Title, string? Description, DateTime StartAt, DateTime EndAt);
+public record EventDto(Guid Id, string Title, string? Description, DateTime StartAt, DateTime EndAt);

@@ -5,17 +5,17 @@ namespace Events_API.Models;
 
 public class Event
 {
-    public int Id { get; init; }
+    public Guid Id { get; init; }
     public string Title { get; set; }
     public string? Description { get; set; }
     public DateTime StartAt { get; set; }
     public DateTime EndAt { get; set; }
 
-    public Event(int id, string title, string? description, DateTime startAt, DateTime endAt)
+    public Event(Guid id, string title, string? description, DateTime startAt, DateTime endAt)
     {
         ValidateTitle(title);
         ValidateDates(startAt, endAt);
-        
+
         Id = id;
         Title = title;
         Description = description;
@@ -23,11 +23,11 @@ public class Event
         EndAt = endAt;
     }
 
-    public Event(int id, string title, DateTime startAt, DateTime endAt)
+    public Event(Guid id, string title, DateTime startAt, DateTime endAt)
     {
         ValidateTitle(title);
         ValidateDates(startAt, endAt);
-        
+
         Id = id;
         Title = title;
         StartAt = startAt;

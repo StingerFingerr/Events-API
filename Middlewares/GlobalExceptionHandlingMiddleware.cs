@@ -52,11 +52,11 @@ public class GlobalExceptionHandlingMiddleware(
         => ex switch
         {
             ValidationException => StatusCodes.Status400BadRequest,
-            
+
             NotFoundException => StatusCodes.Status404NotFound,
-            
+
             ConflictException => StatusCodes.Status409Conflict,
-            
+
             _ => StatusCodes.Status500InternalServerError
         };
 }

@@ -2,5 +2,5 @@
 
 public class ConflictException(string errorMessage) : Exception(errorMessage)
 {
-    
+
 }
