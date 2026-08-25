@@ -11,30 +11,46 @@ public class BookingsService(
     IBookingTaskQueue bookingTaskQueue,
     ILogger<BookingsService> logger) : IBookingService
 {
+    private readonly Lock _bookingLock = new();
+
     public Task<Booking> CreateBookingAsync(Guid eventId)
     {
-        if (!eventsRepository.Events.ContainsKey(eventId))
-            throw new NotFoundException();
-
-        var booking = new Booking
+        lock (_bookingLock)
         {
-            Id = bookingsRepository.NewBookingId,
-            EventId = eventId,
-            CreatedAt = DateTime.UtcNow,
-            Status = BookingStatus.Pending
-        };
+            if (!eventsRepository.Events.TryGetValue(eventId, out var eventFound))
+                throw new NotFoundException();
 
-        if (!bookingsRepository.Bookings.TryAdd(booking.Id, booking))
-            throw new ConflictException("Unable to create booking.");
+            if (!eventFound.TryReserveSeats())
+                throw new NoAvailableSeatsException();
 
-        bookingTaskQueue.Enqueue(new BookingTask
-        {
-            BookingId = booking.Id,
-            EventId = booking.EventId
-        });
-        logger.LogInformation("Booking {BookingId} was queued for processing", booking.Id);
+            var booking = new Booking
+            {
+                Id = bookingsRepository.NewBookingId,
+                EventId = eventId,
+                CreatedAt = DateTime.UtcNow,
+                Status = BookingStatus.Pending
+            };
 
-        return Task.FromResult(booking);
+            try
+            {
+                if (!bookingsRepository.Bookings.TryAdd(booking.Id, booking))
+                    throw new ConflictException("Unable to create booking.");
+
+                bookingTaskQueue.Enqueue(new BookingTask
+                {
+                    BookingId = booking.Id,
+                    EventId = booking.EventId
+                });
+                logger.LogInformation("Booking {BookingId} was queued for processing", booking.Id);
+            }
+            catch
+            {
+                eventFound.ReleaseSeats();
+                throw;
+            }
+
+            return Task.FromResult(booking);
+        }
     }
 
     public Task<Booking> GetBookingByIdAsync(Guid bookingId)

@@ -32,6 +32,7 @@ public class BookingsServiceTests
         Assert.InRange(booking.CreatedAt, beforeCreation, DateTime.UtcNow);
         Assert.True(bookings.TryGetValue(booking.Id, out var savedBooking));
         Assert.Same(booking, savedBooking);
+        Assert.Equal(99, events[eventId].AvailableSeats);
         queue.Verify(q => q.Enqueue(It.Is<BookingTask>(task =>
             task.BookingId == booking.Id && task.EventId == eventId)), Times.Once);
     }
@@ -74,6 +75,27 @@ public class BookingsServiceTests
             new InMemoryEventsRepository(new ConcurrentDictionary<Guid, Event>()));
 
         await Assert.ThrowsAsync<NotFoundException>(() => service.CreateBookingAsync(Guid.NewGuid()));
+    }
+
+    [Fact]
+    public async Task CreateBookingAsync_WhenNoSeatsAreAvailable_ThrowsNoAvailableSeatsException()
+    {
+        var eventId = Guid.NewGuid();
+        var eventData = new Event(eventId, "concert", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(2), 1);
+        var events = new ConcurrentDictionary<Guid, Event>(new[]
+        {
+            new KeyValuePair<Guid, Event>(eventId, eventData)
+        });
+        var bookings = new ConcurrentDictionary<Guid, Booking>();
+        var queue = new Mock<IBookingTaskQueue>();
+        var service = CreateService(new InMemoryBookingsRepository(bookings), new InMemoryEventsRepository(events), queue.Object);
+
+        await service.CreateBookingAsync(eventId);
+
+        await Assert.ThrowsAsync<NoAvailableSeatsException>(() => service.CreateBookingAsync(eventId));
+        Assert.Equal(0, eventData.AvailableSeats);
+        Assert.Single(bookings);
+        queue.Verify(q => q.Enqueue(It.IsAny<BookingTask>()), Times.Once);
     }
 
     [Fact]
