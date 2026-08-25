@@ -17,7 +17,7 @@ public class BookingsServiceTests
         var eventId = Guid.NewGuid();
         var events = new ConcurrentDictionary<Guid, Event>(new[]
         {
-            new KeyValuePair<Guid, Event>(eventId, new Event(eventId, "concert", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(2)))
+            new KeyValuePair<Guid, Event>(eventId, new Event(eventId, "concert", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(2), 100))
         });
         var bookings = new ConcurrentDictionary<Guid, Booking>();
         var queue = new Mock<IBookingTaskQueue>();
@@ -154,5 +154,5 @@ public class BookingsServiceTests
         new(bookingsRepository, eventsRepository, bookingTaskQueue ?? Mock.Of<IBookingTaskQueue>(), NullLogger<BookingsService>.Instance);
 
     private static Event CreateEvent(Guid eventId) =>
-        new(eventId, "concert", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(2));
+        new(eventId, "concert", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(2), 100);
 }
