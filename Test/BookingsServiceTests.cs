@@ -3,9 +3,7 @@ using Events_API.Exceptions;
 using Events_API.Models;
 using Events_API.Services.Bookings;
 using Events_API.Services.Events;
-using Events_API.Background_tasks.Booking;
 using Microsoft.Extensions.Logging.Abstractions;
-using Moq;
 
 namespace Test;
 
@@ -20,8 +18,7 @@ public class BookingsServiceTests
             new KeyValuePair<Guid, Event>(eventId, new Event(eventId, "concert", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(2), 100))
         });
         var bookings = new ConcurrentDictionary<Guid, Booking>();
-        var queue = new Mock<IBookingTaskQueue>();
-        var service = CreateService(new InMemoryBookingsRepository(bookings), new InMemoryEventsRepository(events), queue.Object);
+        var service = CreateService(new InMemoryBookingsRepository(bookings), new InMemoryEventsRepository(events));
         var beforeCreation = DateTime.UtcNow;
 
         var booking = await service.CreateBookingAsync(eventId);
@@ -33,8 +30,6 @@ public class BookingsServiceTests
         Assert.True(bookings.TryGetValue(booking.Id, out var savedBooking));
         Assert.Same(booking, savedBooking);
         Assert.Equal(99, events[eventId].AvailableSeats);
-        queue.Verify(q => q.Enqueue(It.Is<BookingTask>(task =>
-            task.BookingId == booking.Id && task.EventId == eventId)), Times.Once);
     }
 
     [Fact]
@@ -54,17 +49,54 @@ public class BookingsServiceTests
     }
 
     [Fact]
-    public async Task CreateBookingAsync_ForSameEvent_AssignsUniqueIds()
+    public async Task CreateBookingAsync_TenConcurrentRequests_AssignsUniqueIdsAndUsesAllSeats()
     {
         var eventId = Guid.NewGuid();
-        var service = CreateServiceWithEvent(eventId);
+        var eventData = CreateEvent(eventId, totalSeats: 10);
+        var events = new ConcurrentDictionary<Guid, Event>(new[]
+        {
+            new KeyValuePair<Guid, Event>(eventId, eventData)
+        });
+        var service = CreateService(new InMemoryBookingsRepository(), new InMemoryEventsRepository(events));
 
-        var bookings = await Task.WhenAll(
-            service.CreateBookingAsync(eventId),
-            service.CreateBookingAsync(eventId),
-            service.CreateBookingAsync(eventId));
+        var bookingTasks = Enumerable.Range(0, 10)
+            .Select(_ => Task.Run(() => service.CreateBookingAsync(eventId)));
+        var bookings = await Task.WhenAll(bookingTasks);
 
-        Assert.Equal(3, bookings.Select(booking => booking.Id).Distinct().Count());
+        Assert.Equal(10, bookings.Length);
+        Assert.Equal(10, bookings.Select(booking => booking.Id).Distinct().Count());
+        Assert.Equal(0, eventData.AvailableSeats);
+    }
+
+    [Fact]
+    public async Task CreateBookingAsync_TwentyConcurrentRequestsForFiveSeats_PreventsOverbooking()
+    {
+        var eventId = Guid.NewGuid();
+        var eventData = CreateEvent(eventId, totalSeats: 5);
+        var events = new ConcurrentDictionary<Guid, Event>(new[]
+        {
+            new KeyValuePair<Guid, Event>(eventId, eventData)
+        });
+        var service = CreateService(new InMemoryBookingsRepository(), new InMemoryEventsRepository(events));
+
+        var bookingTasks = Enumerable.Range(0, 20)
+            .Select(_ => Task.Run(async () =>
+            {
+                try
+                {
+                    await service.CreateBookingAsync(eventId);
+                    return true;
+                }
+                catch (NoAvailableSeatsException)
+                {
+                    return false;
+                }
+            }));
+        var results = await Task.WhenAll(bookingTasks);
+
+        Assert.Equal(5, results.Count(success => success));
+        Assert.Equal(15, results.Count(success => !success));
+        Assert.Equal(0, eventData.AvailableSeats);
     }
 
     [Fact]
@@ -87,15 +119,13 @@ public class BookingsServiceTests
             new KeyValuePair<Guid, Event>(eventId, eventData)
         });
         var bookings = new ConcurrentDictionary<Guid, Booking>();
-        var queue = new Mock<IBookingTaskQueue>();
-        var service = CreateService(new InMemoryBookingsRepository(bookings), new InMemoryEventsRepository(events), queue.Object);
+        var service = CreateService(new InMemoryBookingsRepository(bookings), new InMemoryEventsRepository(events));
 
         await service.CreateBookingAsync(eventId);
 
         await Assert.ThrowsAsync<NoAvailableSeatsException>(() => service.CreateBookingAsync(eventId));
         Assert.Equal(0, eventData.AvailableSeats);
         Assert.Single(bookings);
-        queue.Verify(q => q.Enqueue(It.IsAny<BookingTask>()), Times.Once);
     }
 
     [Fact]
@@ -171,10 +201,9 @@ public class BookingsServiceTests
 
     private static BookingsService CreateService(
         IBookingsRepository bookingsRepository,
-        IEventsRepository eventsRepository,
-        IBookingTaskQueue? bookingTaskQueue = null) =>
-        new(bookingsRepository, eventsRepository, bookingTaskQueue ?? Mock.Of<IBookingTaskQueue>(), NullLogger<BookingsService>.Instance);
+        IEventsRepository eventsRepository) =>
+        new(bookingsRepository, eventsRepository, NullLogger<BookingsService>.Instance);
 
-    private static Event CreateEvent(Guid eventId) =>
-        new(eventId, "concert", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(2), 100);
+    private static Event CreateEvent(Guid eventId, int totalSeats = 100) =>
+        new(eventId, "concert", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(2), totalSeats);
 }
