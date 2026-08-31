@@ -57,6 +57,8 @@ public class GlobalExceptionHandlingMiddleware(
 
             ConflictException => StatusCodes.Status409Conflict,
 
+            NoAvailableSeatsException => StatusCodes.Status409Conflict,
+
             _ => StatusCodes.Status500InternalServerError
         };
 }

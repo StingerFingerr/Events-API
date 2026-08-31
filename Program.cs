@@ -13,7 +13,6 @@ builder.Services.AddSingleton<IEventService, EventsService>();
 builder.Services.AddSingleton<IEventsRepository, InMemoryEventsRepository>();
 builder.Services.AddSingleton<IBookingService, BookingsService>();
 builder.Services.AddSingleton<IBookingsRepository, InMemoryBookingsRepository>();
-builder.Services.AddSingleton<IBookingTaskQueue, InMemoryBookingTaskQueue>();
 builder.Services.AddHostedService<BookingBackgroundService>();
 
 builder.Host.UseDefaultServiceProvider((context, options) =>

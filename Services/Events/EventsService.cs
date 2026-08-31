@@ -25,8 +25,8 @@ public class EventsService(IEventsRepository repository) : IEventService
         if (EventExistsByTitle(eventData.Title))
             throw new ConflictException(ErrorsMessages.EventAlreadyExists);
 
-        var newEvent = new Event(repository.NewEventId, eventData.Title, eventData.Description, eventData.StartAt,
-            eventData.EndAt);
+        var newEvent = Event.Create(repository.NewEventId, eventData.Title, eventData.Description, eventData.StartAt,
+            eventData.EndAt, eventData.TotalSeats);
 
         if (repository.Events.TryAdd(newEvent.Id, newEvent))
             return newEvent.AsDto();
@@ -41,6 +41,9 @@ public class EventsService(IEventsRepository repository) : IEventService
 
         if (repository.Events.TryGetValue(id, out var eventFound))
         {
+            if (!eventFound.TryUpdateCapacity(eventData.TotalSeats))
+                throw new ValidationException(ErrorsMessages.EventCapacityCannotBeLessThanReservedSeats);
+
             eventFound.Title = eventData.Title;
             eventFound.StartAt = eventData.StartAt;
             eventFound.EndAt = eventData.EndAt;
@@ -118,6 +121,12 @@ public class EventsService(IEventsRepository repository) : IEventService
         if (eventData.StartAt >= eventData.EndAt)
         {
             errorMessage = ErrorsMessages.CannotCreateEventWithStartLaterThenEnd;
+            return true;
+        }
+
+        if (eventData.TotalSeats <= 0)
+        {
+            errorMessage = ErrorsMessages.EventTotalSeatsMustBePositive;
             return true;
         }
 

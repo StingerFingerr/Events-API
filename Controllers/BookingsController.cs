@@ -20,6 +20,7 @@ public class BookingsController(IBookingService bookingService) : ControllerBase
     [HttpPost("api/events/{eventId:guid}/book")]
     [ProducesResponseType(typeof(BookingDto), StatusCodes.Status202Accepted)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
     public async Task<ActionResult<BookingDto>> PostBooking(Guid eventId)
     {

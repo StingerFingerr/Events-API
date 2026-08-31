@@ -36,6 +36,7 @@ public class EventsFiltersTests
         var newEventDto = new CreateEventDto()
         {
             Title = "test title",
+            TotalSeats = 100,
             StartAt = DateTime.Now.AddDays(3),
             EndAt = DateTime.Now.AddDays(4),
         };
@@ -50,6 +51,8 @@ public class EventsFiltersTests
 
         Assert.True(containsSavedEvent, "Событие было добавлено в репозиторий под сгенерированным Id");
         Assert.Equal("test title", events[expectedId].Title);
+        Assert.Equal(100, events[expectedId].TotalSeats);
+        Assert.Equal(100, events[expectedId].AvailableSeats);
     }
 
     [Fact]
@@ -134,6 +137,7 @@ public class EventsFiltersTests
         var newEvent = new CreateEventDto()
         {
             Title = "marathon",
+            TotalSeats = 100,
             StartAt = DateTime.Now.AddDays(7),
             EndAt = DateTime.Now.AddDays(7).AddHours(8)
         };
@@ -142,6 +146,77 @@ public class EventsFiltersTests
 
         Assert.NotNull(result);
         Assert.True(repository.Events.ContainsKey(result.Id));
+        Assert.Equal(100, result.TotalSeats);
+        Assert.Equal(100, result.AvailableSeats);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void CreateEvent_WithNonPositiveTotalSeats_ThrowsValidationException(int totalSeats)
+    {
+        var (eventService, _, _) = CreateServiceWithDefaultEvents();
+        var eventData = new CreateEventDto
+        {
+            Title = "conference",
+            TotalSeats = totalSeats,
+            StartAt = DateTime.UtcNow.AddDays(1),
+            EndAt = DateTime.UtcNow.AddDays(2)
+        };
+
+        var exception = Assert.Throws<ValidationException>(() => eventService.CreateEvent(eventData));
+
+        Assert.Equal(ErrorsMessages.EventTotalSeatsMustBePositive, exception.Message);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void EventCreate_WithNonPositiveTotalSeats_ThrowsArgumentException(int totalSeats)
+    {
+        Assert.Throws<ArgumentException>(() => Event.Create(
+            Guid.NewGuid(), "conference", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(2), totalSeats));
+    }
+
+    [Fact]
+    public void UpdateEventCapacity_PreservesReservedSeats()
+    {
+        var (eventService, _, events) = CreateServiceWithDefaultEvents();
+        var eventData = events[EventIds.RockFestival];
+        eventData.TryReserveSeats(10);
+        var update = new CreateEventDto
+        {
+            Title = eventData.Title,
+            TotalSeats = 120,
+            StartAt = eventData.StartAt,
+            EndAt = eventData.EndAt
+        };
+
+        var result = eventService.UpdateEvent(eventData.Id, update);
+
+        Assert.Equal(120, result.TotalSeats);
+        Assert.Equal(110, result.AvailableSeats);
+    }
+
+    [Fact]
+    public void UpdateEventCapacity_BelowReservedSeats_ThrowsValidationException()
+    {
+        var (eventService, _, events) = CreateServiceWithDefaultEvents();
+        var eventData = events[EventIds.RockFestival];
+        eventData.TryReserveSeats(10);
+        var update = new CreateEventDto
+        {
+            Title = eventData.Title,
+            TotalSeats = 9,
+            StartAt = eventData.StartAt,
+            EndAt = eventData.EndAt
+        };
+
+        var exception = Assert.Throws<ValidationException>(() => eventService.UpdateEvent(eventData.Id, update));
+
+        Assert.Equal(ErrorsMessages.EventCapacityCannotBeLessThanReservedSeats, exception.Message);
+        Assert.Equal(100, eventData.TotalSeats);
+        Assert.Equal(90, eventData.AvailableSeats);
     }
 
     [Fact]
@@ -194,6 +269,7 @@ public class EventsFiltersTests
         var createDto = new CreateEventDto()
         {
             Title = "xxx",
+            TotalSeats = 100,
             StartAt = DateTime.Now,
             EndAt = DateTime.Now.AddDays(1),
         };
@@ -208,6 +284,7 @@ public class EventsFiltersTests
         var dateInPast = new CreateEventDto()
         {
             Title = "new title",
+            TotalSeats = 100,
             StartAt = DateTime.Now.AddDays(-1),
             EndAt = DateTime.Now.AddDays(7),
         };
@@ -221,9 +298,9 @@ public class EventsFiltersTests
     {
         var events = new ConcurrentDictionary<Guid, Event>
         {
-            [EventIds.RockFestival] = new(EventIds.RockFestival, "rock festival", DateTime.Now.AddDays(1), DateTime.Now.AddDays(2)),
-            [EventIds.RapConcert] = new(EventIds.RapConcert, "rap concert", DateTime.Now.AddDays(5), DateTime.Now.AddDays(7)),
-            [EventIds.FoodFestival] = new(EventIds.FoodFestival, "food festival", DateTime.Now.AddDays(14), DateTime.Now.AddDays(15))
+            [EventIds.RockFestival] = Event.Create(EventIds.RockFestival, "rock festival", DateTime.Now.AddDays(1), DateTime.Now.AddDays(2), 100),
+            [EventIds.RapConcert] = Event.Create(EventIds.RapConcert, "rap concert", DateTime.Now.AddDays(5), DateTime.Now.AddDays(7), 100),
+            [EventIds.FoodFestival] = Event.Create(EventIds.FoodFestival, "food festival", DateTime.Now.AddDays(14), DateTime.Now.AddDays(15), 100)
         };
         IEventsRepository repository = new InMemoryEventsRepository(events);
 

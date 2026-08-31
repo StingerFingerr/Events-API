@@ -1,5 +1,4 @@
 using Events_API.Exceptions;
-using Events_API.Background_tasks.Booking;
 using Events_API.Models;
 using Events_API.Services.Events;
 
@@ -8,33 +7,44 @@ namespace Events_API.Services.Bookings;
 public class BookingsService(
     IBookingsRepository bookingsRepository,
     IEventsRepository eventsRepository,
-    IBookingTaskQueue bookingTaskQueue,
     ILogger<BookingsService> logger) : IBookingService
 {
+    private readonly Lock _bookingLock = new();
+
     public Task<Booking> CreateBookingAsync(Guid eventId)
     {
-        if (!eventsRepository.Events.ContainsKey(eventId))
-            throw new NotFoundException();
-
-        var booking = new Booking
+        lock (_bookingLock)
         {
-            Id = bookingsRepository.NewBookingId,
-            EventId = eventId,
-            CreatedAt = DateTime.UtcNow,
-            Status = BookingStatus.Pending
-        };
+            if (!eventsRepository.Events.TryGetValue(eventId, out var eventFound))
+                throw new NotFoundException();
 
-        if (!bookingsRepository.Bookings.TryAdd(booking.Id, booking))
-            throw new ConflictException("Unable to create booking.");
+            if (!eventFound.TryReserveSeats())
+                throw new NoAvailableSeatsException();
 
-        bookingTaskQueue.Enqueue(new BookingTask
-        {
-            BookingId = booking.Id,
-            EventId = booking.EventId
-        });
-        logger.LogInformation("Booking {BookingId} was queued for processing", booking.Id);
+            var booking = new Booking
+            {
+                Id = bookingsRepository.NewBookingId,
+                EventId = eventId,
+                CreatedAt = DateTime.UtcNow,
+                Status = BookingStatus.Pending,
+                ReservedEvent = eventFound
+            };
 
-        return Task.FromResult(booking);
+            try
+            {
+                if (!bookingsRepository.Bookings.TryAdd(booking.Id, booking))
+                    throw new ConflictException("Unable to create booking.");
+
+                logger.LogInformation("Pending booking {BookingId} was created", booking.Id);
+            }
+            catch
+            {
+                eventFound.ReleaseSeats();
+                throw;
+            }
+
+            return Task.FromResult(booking);
+        }
     }
 
     public Task<Booking> GetBookingByIdAsync(Guid bookingId)
@@ -50,8 +60,19 @@ public class BookingsService(
         if (!bookingsRepository.Bookings.TryGetValue(bookingId, out var booking))
             throw new NotFoundException();
 
-        booking.Status = status;
-        booking.ProcessedAt = DateTime.UtcNow;
+        switch (status)
+        {
+            case BookingStatus.Confirmed:
+                booking.Confirm();
+                break;
+            case BookingStatus.Rejected:
+                booking.Reject();
+                break;
+            default:
+                booking.Status = BookingStatus.Pending;
+                booking.ProcessedAt = null;
+                break;
+        }
 
         return Task.CompletedTask;
     }
