@@ -15,7 +15,7 @@ public class BookingsServiceTests
         var eventId = Guid.NewGuid();
         var events = new ConcurrentDictionary<Guid, Event>(new[]
         {
-            new KeyValuePair<Guid, Event>(eventId, new Event(eventId, "concert", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(2), 100))
+            new KeyValuePair<Guid, Event>(eventId, Event.Create(eventId, "concert", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(2), 100))
         });
         var bookings = new ConcurrentDictionary<Guid, Booking>();
         var service = CreateService(new InMemoryBookingsRepository(bookings), new InMemoryEventsRepository(events));
@@ -113,7 +113,7 @@ public class BookingsServiceTests
     public async Task CreateBookingAsync_WhenNoSeatsAreAvailable_ThrowsNoAvailableSeatsException()
     {
         var eventId = Guid.NewGuid();
-        var eventData = new Event(eventId, "concert", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(2), 1);
+        var eventData = Event.Create(eventId, "concert", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(2), 1);
         var events = new ConcurrentDictionary<Guid, Event>(new[]
         {
             new KeyValuePair<Guid, Event>(eventId, eventData)
@@ -123,7 +123,9 @@ public class BookingsServiceTests
 
         await service.CreateBookingAsync(eventId);
 
-        await Assert.ThrowsAsync<NoAvailableSeatsException>(() => service.CreateBookingAsync(eventId));
+        var exception = await Assert.ThrowsAsync<NoAvailableSeatsException>(() => service.CreateBookingAsync(eventId));
+
+        Assert.Equal("No available seats for this event", exception.Message);
         Assert.Equal(0, eventData.AvailableSeats);
         Assert.Single(bookings);
     }
@@ -205,5 +207,5 @@ public class BookingsServiceTests
         new(bookingsRepository, eventsRepository, NullLogger<BookingsService>.Instance);
 
     private static Event CreateEvent(Guid eventId, int totalSeats = 100) =>
-        new(eventId, "concert", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(2), totalSeats);
+        Event.Create(eventId, "concert", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(2), totalSeats);
 }

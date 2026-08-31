@@ -80,5 +80,5 @@ public class BookingBackgroundServiceTests
     }
 
     private static Event CreateEvent(Guid eventId) =>
-        new(eventId, "concert", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(2), 100);
+        Event.Create(eventId, "concert", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(2), 100);
 }

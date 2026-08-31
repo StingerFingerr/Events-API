@@ -38,7 +38,7 @@ public class BookingTests
     public async Task RejectAndReleaseSeats_RestoresSeatAndAllowsAnotherBooking()
     {
         var eventId = Guid.NewGuid();
-        var eventData = new Event(
+        var eventData = Event.Create(
             eventId,
             "concert",
             DateTime.UtcNow.AddDays(1),

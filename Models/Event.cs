@@ -12,10 +12,10 @@ public class Event
     public string? Description { get; set; }
     public DateTime StartAt { get; set; }
     public DateTime EndAt { get; set; }
-    public int TotalSeats { get; set; }
+    public int TotalSeats { get; private set; }
     public int AvailableSeats { get; private set; }
 
-    public Event(Guid id, string title, string? description, DateTime startAt, DateTime endAt, int totalSeats)
+    private Event(Guid id, string title, string? description, DateTime startAt, DateTime endAt, int totalSeats)
     {
         ValidateTitle(title);
         ValidateDates(startAt, endAt);
@@ -30,20 +30,17 @@ public class Event
         AvailableSeats = totalSeats;
     }
 
-    public Event(Guid id, string title, DateTime startAt, DateTime endAt, int totalSeats)
-    {
-        ValidateTitle(title);
-        ValidateDates(startAt, endAt);
-        ValidateTotalSeats(totalSeats);
+    public static Event Create(
+        Guid id,
+        string title,
+        string? description,
+        DateTime startAt,
+        DateTime endAt,
+        int totalSeats) =>
+        new(id, title, description, startAt, endAt, totalSeats);
 
-        Id = id;
-        Title = title;
-        StartAt = startAt;
-        EndAt = endAt;
-        Description = null;
-        TotalSeats = totalSeats;
-        AvailableSeats = totalSeats;
-    }
+    public static Event Create(Guid id, string title, DateTime startAt, DateTime endAt, int totalSeats) =>
+        new(id, title, null, startAt, endAt, totalSeats);
 
     public bool TryReserveSeats(int count = 1)
     {
@@ -66,6 +63,22 @@ public class Event
         lock (_seatsLock)
         {
             AvailableSeats = Math.Min(TotalSeats, AvailableSeats + count);
+        }
+    }
+
+    public bool TryUpdateCapacity(int totalSeats)
+    {
+        ValidateTotalSeats(totalSeats);
+
+        lock (_seatsLock)
+        {
+            var reservedSeats = TotalSeats - AvailableSeats;
+            if (totalSeats < reservedSeats)
+                return false;
+
+            TotalSeats = totalSeats;
+            AvailableSeats = totalSeats - reservedSeats;
+            return true;
         }
     }
 
