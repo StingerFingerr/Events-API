@@ -5,10 +5,10 @@ public class Booking
     private readonly Lock _stateLock = new();
     private bool _seatsReleased;
 
-    public Guid Id { get; set; }
-    public Event Event { get; set; } = null!;
-    public Guid EventId { get; set; }
-    public DateTime CreatedAt { get; set; }
+    public Guid Id { get; init; }
+    public Event Event { get; init; } = null!;
+    public Guid EventId { get; init; }
+    public DateTime CreatedAt { get; init; }
     public DateTime? ProcessedAt { get; set; }
     public BookingStatus Status { get; set; }
 

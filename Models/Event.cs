@@ -14,7 +14,7 @@ public class Event
     public DateTime EndAt { get; set; }
     public int TotalSeats { get; private set; }
     public int AvailableSeats { get; private set; }
-    public ICollection<Booking> Bookings { get; set; } = new List<Booking>();
+    public ICollection<Booking> Bookings { get; init; } = new List<Booking>();
 
     public Event()
     {
