@@ -8,13 +8,19 @@ public class Event
     private readonly Lock _seatsLock = new();
 
     public Guid Id { get; init; }
-    public string Title { get; set; }
+    public string Title { get; set; } = null!;
     public string? Description { get; set; }
     public DateTime StartAt { get; set; }
     public DateTime EndAt { get; set; }
     public int TotalSeats { get; private set; }
     public int AvailableSeats { get; private set; }
+    public ICollection<Booking> Bookings { get; set; } = new List<Booking>();
 
+    public Event()
+    {
+        
+    }
+    
     private Event(Guid id, string title, string? description, DateTime startAt, DateTime endAt, int totalSeats)
     {
         ValidateTitle(title);

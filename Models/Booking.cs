@@ -6,6 +6,7 @@ public class Booking
     private bool _seatsReleased;
 
     public Guid Id { get; set; }
+    public Event Event { get; set; } = null!;
     public Guid EventId { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? ProcessedAt { get; set; }
@@ -13,6 +14,11 @@ public class Booking
 
     internal Event? ReservedEvent { get; init; }
 
+    public Booking()
+    {
+        
+    }
+    
     public void Confirm()
     {
         lock (_stateLock)
