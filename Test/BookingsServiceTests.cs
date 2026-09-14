@@ -1,211 +1,80 @@
-using System.Collections.Concurrent;
+using Events_API.DataAccess;
 using Events_API.Exceptions;
 using Events_API.Models;
 using Events_API.Services.Bookings;
-using Events_API.Services.Events;
-using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Test;
 
-public class BookingsServiceTests
+public class BookingsServiceTests : IDisposable
 {
-    [Fact]
-    public async Task CreateBookingAsync_SavesPendingBookingWithNewIdAndCurrentDate()
+    private readonly ServiceProvider _serviceProvider = TestDatabase.CreateServiceProvider();
+
+    public void Dispose() => _serviceProvider.Dispose();
+
+    [Theory]
+    [InlineData(10, 10)]
+    [InlineData(5, 20)]
+    public async Task ConcurrentScopes_PreventOverbooking(int seats, int requests)
     {
-        var eventId = Guid.NewGuid();
-        var events = new ConcurrentDictionary<Guid, Event>(new[]
+        using var scope = _serviceProvider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var eventData = Event.Create(Guid.NewGuid(), "concert", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(2), seats);
+        context.Events.Add(eventData);
+        await context.SaveChangesAsync();
+        var results = await Task.WhenAll(Enumerable.Range(0, requests).Select(_ => Task.Run(async () =>
         {
-            new KeyValuePair<Guid, Event>(eventId, Event.Create(eventId, "concert", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(2), 100))
-        });
-        var bookings = new ConcurrentDictionary<Guid, Booking>();
-        var service = CreateService(new InMemoryBookingsRepository(bookings), new InMemoryEventsRepository(events));
-        var beforeCreation = DateTime.UtcNow;
-
-        var booking = await service.CreateBookingAsync(eventId);
-
-        Assert.NotEqual(Guid.Empty, booking.Id);
-        Assert.Equal(eventId, booking.EventId);
-        Assert.Equal(BookingStatus.Pending, booking.Status);
-        Assert.InRange(booking.CreatedAt, beforeCreation, DateTime.UtcNow);
-        Assert.True(bookings.TryGetValue(booking.Id, out var savedBooking));
-        Assert.Same(booking, savedBooking);
-        Assert.Equal(99, events[eventId].AvailableSeats);
-    }
-
-    [Fact]
-    public async Task GetBookingByIdAsync_ReturnsSavedBooking()
-    {
-        var booking = new Booking { Id = Guid.NewGuid(), EventId = Guid.NewGuid() };
-        var service = CreateService(
-            new InMemoryBookingsRepository(new ConcurrentDictionary<Guid, Booking>(new[]
-            {
-                new KeyValuePair<Guid, Booking>(booking.Id, booking)
-            })),
-            new InMemoryEventsRepository(new ConcurrentDictionary<Guid, Event>()));
-
-        var result = await service.GetBookingByIdAsync(booking.Id);
-
-        Assert.Same(booking, result);
-    }
-
-    [Fact]
-    public async Task CreateBookingAsync_TenConcurrentRequests_AssignsUniqueIdsAndUsesAllSeats()
-    {
-        var eventId = Guid.NewGuid();
-        var eventData = CreateEvent(eventId, totalSeats: 10);
-        var events = new ConcurrentDictionary<Guid, Event>(new[]
-        {
-            new KeyValuePair<Guid, Event>(eventId, eventData)
-        });
-        var service = CreateService(new InMemoryBookingsRepository(), new InMemoryEventsRepository(events));
-
-        var bookingTasks = Enumerable.Range(0, 10)
-            .Select(_ => Task.Run(() => service.CreateBookingAsync(eventId)));
-        var bookings = await Task.WhenAll(bookingTasks);
-
-        Assert.Equal(10, bookings.Length);
-        Assert.Equal(10, bookings.Select(booking => booking.Id).Distinct().Count());
-        Assert.Equal(0, eventData.AvailableSeats);
-    }
-
-    [Fact]
-    public async Task CreateBookingAsync_TwentyConcurrentRequestsForFiveSeats_PreventsOverbooking()
-    {
-        var eventId = Guid.NewGuid();
-        var eventData = CreateEvent(eventId, totalSeats: 5);
-        var events = new ConcurrentDictionary<Guid, Event>(new[]
-        {
-            new KeyValuePair<Guid, Event>(eventId, eventData)
-        });
-        var service = CreateService(new InMemoryBookingsRepository(), new InMemoryEventsRepository(events));
-
-        var bookingTasks = Enumerable.Range(0, 20)
-            .Select(_ => Task.Run(async () =>
-            {
-                try
-                {
-                    await service.CreateBookingAsync(eventId);
-                    return true;
-                }
-                catch (NoAvailableSeatsException)
-                {
-                    return false;
-                }
-            }));
-        var results = await Task.WhenAll(bookingTasks);
-
-        Assert.Equal(5, results.Count(success => success));
-        Assert.Equal(15, results.Count(success => !success));
-        Assert.Equal(0, eventData.AvailableSeats);
-    }
-
-    [Fact]
-    public async Task CreateBookingAsync_ForMissingEvent_ThrowsNotFoundException()
-    {
-        var service = CreateService(
-            new InMemoryBookingsRepository(),
-            new InMemoryEventsRepository(new ConcurrentDictionary<Guid, Event>()));
-
-        await Assert.ThrowsAsync<NotFoundException>(() => service.CreateBookingAsync(Guid.NewGuid()));
-    }
-
-    [Fact]
-    public async Task CreateBookingAsync_WhenNoSeatsAreAvailable_ThrowsNoAvailableSeatsException()
-    {
-        var eventId = Guid.NewGuid();
-        var eventData = Event.Create(eventId, "concert", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(2), 1);
-        var events = new ConcurrentDictionary<Guid, Event>(new[]
-        {
-            new KeyValuePair<Guid, Event>(eventId, eventData)
-        });
-        var bookings = new ConcurrentDictionary<Guid, Booking>();
-        var service = CreateService(new InMemoryBookingsRepository(bookings), new InMemoryEventsRepository(events));
-
-        await service.CreateBookingAsync(eventId);
-
-        var exception = await Assert.ThrowsAsync<NoAvailableSeatsException>(() => service.CreateBookingAsync(eventId));
-
-        Assert.Equal("No available seats for this event", exception.Message);
-        Assert.Equal(0, eventData.AvailableSeats);
-        Assert.Single(bookings);
-    }
-
-    [Fact]
-    public async Task CreateBookingAsync_ForDeletedEvent_ThrowsNotFoundException()
-    {
-        var eventId = Guid.NewGuid();
-        var events = new ConcurrentDictionary<Guid, Event>(new[]
-        {
-            new KeyValuePair<Guid, Event>(eventId, CreateEvent(eventId))
-        });
-        var service = CreateService(new InMemoryBookingsRepository(), new InMemoryEventsRepository(events));
-        events.TryRemove(eventId, out _);
-
-        await Assert.ThrowsAsync<NotFoundException>(() => service.CreateBookingAsync(eventId));
-    }
-
-    [Fact]
-    public async Task GetBookingByIdAsync_ForMissingBooking_ThrowsNotFoundException()
-    {
-        var service = CreateService(
-            new InMemoryBookingsRepository(),
-            new InMemoryEventsRepository(new ConcurrentDictionary<Guid, Event>()));
-
-        await Assert.ThrowsAsync<NotFoundException>(() => service.GetBookingByIdAsync(Guid.NewGuid()));
-    }
-
-    [Fact]
-    public async Task UpdateBookingStatusAsync_UpdatesStatusAndProcessedAt()
-    {
-        var booking = new Booking { Id = Guid.NewGuid(), EventId = Guid.NewGuid(), Status = BookingStatus.Pending };
-        var service = CreateService(
-            new InMemoryBookingsRepository(new ConcurrentDictionary<Guid, Booking>(new[]
-            {
-                new KeyValuePair<Guid, Booking>(booking.Id, booking)
-            })),
-            new InMemoryEventsRepository(new ConcurrentDictionary<Guid, Event>()));
-        var beforeUpdate = DateTime.UtcNow;
-
-        await service.UpdateBookingStatusAsync(booking.Id, BookingStatus.Confirmed);
-
-        Assert.Equal(BookingStatus.Confirmed, booking.Status);
-        Assert.NotNull(booking.ProcessedAt);
-        Assert.InRange(booking.ProcessedAt.Value, beforeUpdate, DateTime.UtcNow);
+            using var requestScope = _serviceProvider.CreateScope();
+            var scopeContext = requestScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            // Exercise contexts that have already tracked the event before acquiring the semaphore.
+            await scopeContext.Events.FindAsync(eventData.Id);
+            var service = requestScope.ServiceProvider.GetRequiredService<IBookingService>();
+            try { return (await service.CreateBookingAsync(eventData.Id)).Id; }
+            catch (NoAvailableSeatsException) { return Guid.Empty; }
+        })));
+        context.ChangeTracker.Clear();
+        Assert.Equal(seats, results.Count(id => id != Guid.Empty));
+        Assert.Equal(seats, results.Where(id => id != Guid.Empty).Distinct().Count());
+        Assert.Equal(seats, await context.Bookings.CountAsync());
+        Assert.Equal(0, (await context.Events.SingleAsync()).AvailableSeats);
     }
 
     [Theory]
     [InlineData(BookingStatus.Confirmed)]
     [InlineData(BookingStatus.Rejected)]
-    public async Task GetBookingByIdAsync_ReturnsChangedProcessingStatus(BookingStatus finalStatus)
+    [InlineData(BookingStatus.Pending)]
+    public async Task CreateAndUpdate_PersistAcrossContexts(BookingStatus status)
     {
-        var eventId = Guid.NewGuid();
-        var service = CreateServiceWithEvent(eventId);
-
-        var created = await service.CreateBookingAsync(eventId);
-        var pending = await service.GetBookingByIdAsync(created.Id);
-        Assert.Equal(BookingStatus.Pending, pending.Status);
-
-        await service.UpdateBookingStatusAsync(created.Id, finalStatus);
-        var processed = await service.GetBookingByIdAsync(created.Id);
-
-        Assert.Equal(finalStatus, processed.Status);
+        using var scope = _serviceProvider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var eventData = Event.Create(Guid.NewGuid(), "concert", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(2), 2);
+        context.Events.Add(eventData);
+        await context.SaveChangesAsync();
+        var service = scope.ServiceProvider.GetRequiredService<IBookingService>();
+        var before = DateTime.UtcNow;
+        var booking = await service.CreateBookingAsync(eventData.Id);
+        Assert.NotEqual(Guid.Empty, booking.Id);
+        Assert.Equal(BookingStatus.Pending, booking.Status);
+        Assert.InRange(booking.CreatedAt, before, DateTime.UtcNow);
+        using var otherScope = _serviceProvider.CreateScope();
+        var otherService = otherScope.ServiceProvider.GetRequiredService<IBookingService>();
+        await otherService.UpdateBookingStatusAsync(booking.Id, status);
+        context.ChangeTracker.Clear();
+        var saved = await service.GetBookingByIdAsync(booking.Id);
+        Assert.Equal(status, saved.Status);
+        Assert.Equal(status == BookingStatus.Pending, saved.ProcessedAt is null);
+        Assert.Equal(1, (await context.Events.SingleAsync()).AvailableSeats);
     }
 
-    private static BookingsService CreateServiceWithEvent(Guid eventId)
+    [Fact]
+    public async Task MissingEntities_ThrowNotFound()
     {
-        var events = new ConcurrentDictionary<Guid, Event>(new[]
-        {
-            new KeyValuePair<Guid, Event>(eventId, CreateEvent(eventId))
-        });
-
-        return CreateService(new InMemoryBookingsRepository(), new InMemoryEventsRepository(events));
+        using var scope = _serviceProvider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var service = scope.ServiceProvider.GetRequiredService<IBookingService>();
+        await Assert.ThrowsAsync<NotFoundException>(() => service.CreateBookingAsync(Guid.NewGuid()));
+        await Assert.ThrowsAsync<NotFoundException>(() => service.GetBookingByIdAsync(Guid.NewGuid()));
+        await Assert.ThrowsAsync<NotFoundException>(() => service.UpdateBookingStatusAsync(Guid.NewGuid(), BookingStatus.Confirmed));
     }
-
-    private static BookingsService CreateService(
-        IBookingsRepository bookingsRepository,
-        IEventsRepository eventsRepository) =>
-        new(bookingsRepository, eventsRepository, NullLogger<BookingsService>.Instance);
-
-    private static Event CreateEvent(Guid eventId, int totalSeats = 100) =>
-        Event.Create(eventId, "concert", DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(2), totalSeats);
 }

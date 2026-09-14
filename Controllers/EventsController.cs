@@ -1,4 +1,4 @@
-﻿using Events_API.DTOs.Events;
+using Events_API.DTOs.Events;
 using Events_API.DTOs.Events.Incoming;
 using Events_API.DTOs.Events.Results;
 using Events_API.Services;
@@ -15,18 +15,18 @@ public class EventsController(IEventService eventService) : ControllerBase
     [HttpGet("{id:guid}", Name = nameof(GetEvent))]
     [ProducesResponseType(typeof(EventDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public IActionResult GetEvent(Guid id)
+    public async Task<IActionResult> GetEvent(Guid id)
     {
-        var eventFound = eventService.GetEventById(id);
+        var eventFound = await eventService.GetEventById(id);
         return Ok(eventFound);
     }
 
     [HttpGet]
     [ProducesResponseType<List<EventDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
-    public IActionResult GetEvents([FromQuery] GetEventsByFiltersDto filters)
+    public async Task<IActionResult> GetEvents([FromQuery] GetEventsByFiltersDto filters)
     {
-        var eventsByFilters = eventService.GetEventsByFilters(filters);
+        var eventsByFilters = await eventService.GetEventsByFilters(filters);
         return Ok(eventsByFilters);
     }
 
@@ -34,9 +34,9 @@ public class EventsController(IEventService eventService) : ControllerBase
     [ProducesResponseType(typeof(EventDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    public IActionResult PostEvent([FromBody] CreateEventDto eventData)
+    public async Task<IActionResult> PostEvent([FromBody] CreateEventDto eventData)
     {
-        var createdEvent = eventService.CreateEvent(eventData);
+        var createdEvent = await eventService.CreateEvent(eventData);
         return CreatedAtAction(
             nameof(GetEvent),
             new { id = createdEvent.Id },
@@ -48,9 +48,9 @@ public class EventsController(IEventService eventService) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    public IActionResult PatchEvent(Guid id, [FromBody] UpdateTitleDto dto)
+    public async Task<IActionResult> PatchEvent(Guid id, [FromBody] UpdateTitleDto dto)
     {
-        var updatedEvent = eventService.UpdateEvent(id, dto.Title);
+        var updatedEvent = await eventService.UpdateEvent(id, dto.Title);
         return Ok(updatedEvent);
     }
 
@@ -59,18 +59,18 @@ public class EventsController(IEventService eventService) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
-    public IActionResult PutEvent(Guid id, CreateEventDto newEventData)
+    public async Task<IActionResult> PutEvent(Guid id, CreateEventDto newEventData)
     {
-        var updatedEvent = eventService.UpdateEvent(id, newEventData);
+        var updatedEvent = await eventService.UpdateEvent(id, newEventData);
         return Ok(updatedEvent);
     }
 
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public IActionResult DeleteEvent(Guid id)
+    public async Task<IActionResult> DeleteEvent(Guid id)
     {
-        eventService.DeleteEvent(id);
+        await eventService.DeleteEvent(id);
         return NoContent();
     }
 }

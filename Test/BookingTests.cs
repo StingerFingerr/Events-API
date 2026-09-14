@@ -1,8 +1,8 @@
-using System.Collections.Concurrent;
+using Events_API.DataAccess;
 using Events_API.Models;
 using Events_API.Services.Bookings;
 using Events_API.Services.Events;
-using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Test;
 
@@ -44,18 +44,17 @@ public class BookingTests
             DateTime.UtcNow.AddDays(1),
             DateTime.UtcNow.AddDays(2),
             totalSeats: 1);
-        var events = new ConcurrentDictionary<Guid, Event>(new[]
-        {
-            new KeyValuePair<Guid, Event>(eventId, eventData)
-        });
-        var service = new BookingsService(
-            new InMemoryBookingsRepository(),
-            new InMemoryEventsRepository(events),
-            NullLogger<BookingsService>.Instance);
+        using var provider = TestDatabase.CreateServiceProvider();
+        using var scope = provider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        context.Events.Add(eventData);
+        await context.SaveChangesAsync();
+        var service = scope.ServiceProvider.GetRequiredService<IBookingService>();
         var firstBooking = await service.CreateBookingAsync(eventId);
 
         firstBooking.Reject();
         eventData.ReleaseSeats();
+        await context.SaveChangesAsync();
 
         Assert.Equal(1, eventData.AvailableSeats);
 
