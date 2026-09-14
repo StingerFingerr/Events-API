@@ -1,6 +1,6 @@
 using Events_API.DataAccess;
 using Microsoft.EntityFrameworkCore;
-using System.Collections.Concurrent;
+using Microsoft.Extensions.DependencyInjection;
 using System.ComponentModel.DataAnnotations;
 using Events_API.Consts;
 using Events_API.DTOs.Events;
@@ -13,27 +13,35 @@ namespace Test;
 
 public class EventsFiltersTests : IDisposable
 {
-    private readonly List<AppDbContext> _contexts = new();
-    public void Dispose() { foreach (var context in _contexts) context.Dispose(); }
+    private readonly ServiceProvider _serviceProvider = TestDatabase.CreateServiceProvider();
+    private readonly List<IServiceScope> _scopes = new();
+    public void Dispose()
+    {
+        foreach (var scope in _scopes)
+            scope.Dispose();
+        _serviceProvider.Dispose();
+    }
+
     [Theory]
     [InlineData(-1, 10)]
     [InlineData(1, -5)]
     [InlineData(0, 7)]
     public async Task GetEventsByFilters_WithInvalidPagination_ThrowsArgumentException(int page, int pageSize)
     {
-        using var context = TestDatabase.Create();
-        var service = new EventsService(context);
+        using var scope = _serviceProvider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var service = scope.ServiceProvider.GetRequiredService<IEventService>();
         var invalidFilters = new GetEventsByFiltersDto { Page = page, PageSize = pageSize };
 
         await Assert.ThrowsAsync<ValidationException>(() => service.GetEventsByFilters(invalidFilters));
     }
 
     [Fact]
-    public async Task CreateEvent_ShouldSaveNewEventInRepositoryWithUniqueId()
+    public async Task CreateEvent_ShouldSaveNewEventInDatabaseWithUniqueId()
     {
-        var events = new ConcurrentDictionary<Guid, Event>();
-        using var context = TestDatabase.Create();
-        var eventsService = new EventsService(context);
+        using var scope = _serviceProvider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var eventsService = scope.ServiceProvider.GetRequiredService<IEventService>();
 
         var newEventDto = new CreateEventDto()
         {
@@ -129,9 +137,9 @@ public class EventsFiltersTests : IDisposable
     }
 
     [Fact]
-    public async Task SuccessCreateEvent_AddsEventInRepository()
+    public async Task SuccessCreateEvent_AddsEventInDatabase()
     {
-        var (eventService, repository, _) = CreateServiceWithDefaultEvents();
+        var (eventService, context, _) = CreateServiceWithDefaultEvents();
         var newEvent = new CreateEventDto()
         {
             Title = "marathon",
@@ -143,7 +151,7 @@ public class EventsFiltersTests : IDisposable
         var result = await eventService.CreateEvent(newEvent);
 
         Assert.NotNull(result);
-        Assert.True(await repository.Events.AnyAsync(e => e.Id == result.Id));
+        Assert.True(await context.Events.AnyAsync(e => e.Id == result.Id));
         Assert.Equal(100, result.TotalSeats);
         Assert.Equal(100, result.AvailableSeats);
     }
@@ -218,7 +226,7 @@ public class EventsFiltersTests : IDisposable
     }
 
     [Fact]
-    public async Task SuccessUpdateEventTitle_UpdatesEventInRepository()
+    public async Task SuccessUpdateEventTitle_UpdatesEventInDatabase()
     {
         var (eventService, _, _) = CreateServiceWithDefaultEvents();
         var updateId = EventIds.FoodFestival;
@@ -231,14 +239,14 @@ public class EventsFiltersTests : IDisposable
     }
 
     [Fact]
-    public async Task SuccessDeleteEvent_DeletesEventInRepository()
+    public async Task SuccessDeleteEvent_DeletesEventInDatabase()
     {
-        var (eventService, repository, _) = CreateServiceWithDefaultEvents();
+        var (eventService, context, _) = CreateServiceWithDefaultEvents();
         var deleteId = EventIds.FoodFestival;
 
         await eventService.DeleteEvent(deleteId);
 
-        Assert.False(await repository.Events.AnyAsync(e => e.Id == deleteId));
+        Assert.False(await context.Events.AnyAsync(e => e.Id == deleteId));
     }
 
     [Fact]
@@ -253,11 +261,11 @@ public class EventsFiltersTests : IDisposable
     [Fact]
     public async Task WrongIdUpdateEvent_ThrowsNotFoundException()
     {
-        var (eventService, repository, _) = CreateServiceWithDefaultEvents();
+        var (eventService, context, _) = CreateServiceWithDefaultEvents();
         var wrongId = Guid.NewGuid();
 
         await Assert.ThrowsAsync<NotFoundException>(() => eventService.UpdateEvent(wrongId, "new title"));
-        Assert.False(await repository.Events.AnyAsync(e => e.Id == wrongId));
+        Assert.False(await context.Events.AnyAsync(e => e.Id == wrongId));
     }
 
     [Fact]
@@ -291,21 +299,22 @@ public class EventsFiltersTests : IDisposable
         await Assert.ThrowsAsync<ValidationException>(() => eventService.UpdateEvent(eventId, dateInPast));
     }
 
-    private (IEventService EventService, AppDbContext Repository, ConcurrentDictionary<Guid, Event> Events)
+    private (IEventService EventService, AppDbContext Database, Dictionary<Guid, Event> Events)
         CreateServiceWithDefaultEvents()
     {
-        var events = new ConcurrentDictionary<Guid, Event>
+        var events = new Dictionary<Guid, Event>
         {
             [EventIds.RockFestival] = Event.Create(EventIds.RockFestival, "rock festival", DateTime.Now.AddDays(1), DateTime.Now.AddDays(2), 100),
             [EventIds.RapConcert] = Event.Create(EventIds.RapConcert, "rap concert", DateTime.Now.AddDays(5), DateTime.Now.AddDays(7), 100),
             [EventIds.FoodFestival] = Event.Create(EventIds.FoodFestival, "food festival", DateTime.Now.AddDays(14), DateTime.Now.AddDays(15), 100)
         };
-        var repository = TestDatabase.Create();
-        _contexts.Add(repository);
-        repository.Events.AddRange(events.Values);
-        repository.SaveChanges();
+        var scope = _serviceProvider.CreateScope();
+        _scopes.Add(scope);
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        context.Events.AddRange(events.Values);
+        context.SaveChanges();
 
-        return (new EventsService(repository), repository, events);
+        return (scope.ServiceProvider.GetRequiredService<IEventService>(), context, events);
     }
 }
 
