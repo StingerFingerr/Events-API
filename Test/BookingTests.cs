@@ -48,14 +48,15 @@ public class BookingTests
         {
             new KeyValuePair<Guid, Event>(eventId, eventData)
         });
+        using var context = TestDatabase.Create(); context.Events.Add(eventData); await context.SaveChangesAsync();
         var service = new BookingsService(
-            new InMemoryBookingsRepository(),
-            new InMemoryEventsRepository(events),
+            context,
             NullLogger<BookingsService>.Instance);
         var firstBooking = await service.CreateBookingAsync(eventId);
 
         firstBooking.Reject();
         eventData.ReleaseSeats();
+        await context.SaveChangesAsync();
 
         Assert.Equal(1, eventData.AvailableSeats);
 

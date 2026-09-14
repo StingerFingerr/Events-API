@@ -19,6 +19,9 @@
     </ItemGroup>
 
     <ItemGroup>
+      <Compile Remove="Test\**\*.cs" />
+      <Content Remove="Test\**" />
+      <None Remove="Test\**" />
       <Folder Include="Background tasks\" />
       <Folder Include="Services\Bookings\" />
     </ItemGroup>

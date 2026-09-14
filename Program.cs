@@ -1,3 +1,5 @@
+using Events_API.DataAccess;
+using Microsoft.EntityFrameworkCore;
 using Events_API.Background_tasks.Booking;
 using Events_API.Extensions;
 using Events_API.Middlewares;
@@ -9,10 +11,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddProblemDetails();
 builder.Services.AddControllersWithOptions();
 builder.Services.AddSwaggerGen();
-builder.Services.AddSingleton<IEventService, EventsService>();
-builder.Services.AddSingleton<IEventsRepository, InMemoryEventsRepository>();
-builder.Services.AddSingleton<IBookingService, BookingsService>();
-builder.Services.AddSingleton<IBookingsRepository, InMemoryBookingsRepository>();
+builder.Services.AddScoped<IEventService, EventsService>();
+builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddScoped<IBookingService, BookingsService>();
 builder.Services.AddHostedService<BookingBackgroundService>();
 
 builder.Host.UseDefaultServiceProvider((context, options) =>

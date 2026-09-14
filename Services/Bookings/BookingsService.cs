@@ -1,65 +1,60 @@
+using Events_API.DataAccess;
 using Events_API.Exceptions;
 using Events_API.Models;
-using Events_API.Services.Events;
+using Microsoft.EntityFrameworkCore;
 
 namespace Events_API.Services.Bookings;
 
-public class BookingsService(
-    IBookingsRepository bookingsRepository,
-    IEventsRepository eventsRepository,
-    ILogger<BookingsService> logger) : IBookingService
+public class BookingsService(AppDbContext context, ILogger<BookingsService> logger) : IBookingService
 {
-    private readonly Lock _bookingLock = new();
+    private static readonly SemaphoreSlim BookingSemaphore = new(1, 1);
 
-    public Task<Booking> CreateBookingAsync(Guid eventId)
+    public async Task<Booking> CreateBookingAsync(Guid eventId)
     {
-        lock (_bookingLock)
+        await BookingSemaphore.WaitAsync();
+        try
         {
-            if (!eventsRepository.Events.TryGetValue(eventId, out var eventFound))
+            var eventFound = await context.Events.FindAsync(eventId) ?? throw new NotFoundException();
+            await context.Entry(eventFound).ReloadAsync();
+            if (context.Entry(eventFound).State == EntityState.Detached)
                 throw new NotFoundException();
-
             if (!eventFound.TryReserveSeats())
                 throw new NoAvailableSeatsException();
 
             var booking = new Booking
             {
-                Id = bookingsRepository.NewBookingId,
+                Id = Guid.NewGuid(),
                 EventId = eventId,
+                Event = eventFound,
                 CreatedAt = DateTime.UtcNow,
-                Status = BookingStatus.Pending,
-                ReservedEvent = eventFound
+                Status = BookingStatus.Pending
             };
-
             try
             {
-                if (!bookingsRepository.Bookings.TryAdd(booking.Id, booking))
-                    throw new ConflictException("Unable to create booking.");
-
-                logger.LogInformation("Pending booking {BookingId} was created", booking.Id);
+                context.Bookings.Add(booking);
+                await context.SaveChangesAsync();
             }
             catch
             {
+                context.Entry(booking).State = EntityState.Detached;
                 eventFound.ReleaseSeats();
                 throw;
             }
-
-            return Task.FromResult(booking);
+            logger.LogInformation("Pending booking {BookingId} was created", booking.Id);
+            return booking;
+        }
+        finally
+        {
+            BookingSemaphore.Release();
         }
     }
 
-    public Task<Booking> GetBookingByIdAsync(Guid bookingId)
+    public async Task<Booking> GetBookingByIdAsync(Guid bookingId) =>
+        await context.Bookings.FindAsync(bookingId) ?? throw new NotFoundException();
+
+    public async Task UpdateBookingStatusAsync(Guid bookingId, BookingStatus status)
     {
-        if (bookingsRepository.Bookings.TryGetValue(bookingId, out var booking))
-            return Task.FromResult(booking);
-
-        throw new NotFoundException();
-    }
-
-    public Task UpdateBookingStatusAsync(Guid bookingId, BookingStatus status)
-    {
-        if (!bookingsRepository.Bookings.TryGetValue(bookingId, out var booking))
-            throw new NotFoundException();
-
+        var booking = await context.Bookings.FindAsync(bookingId) ?? throw new NotFoundException();
         switch (status)
         {
             case BookingStatus.Confirmed:
@@ -73,7 +68,6 @@ public class BookingsService(
                 booking.ProcessedAt = null;
                 break;
         }
-
-        return Task.CompletedTask;
+        await context.SaveChangesAsync();
     }
 }

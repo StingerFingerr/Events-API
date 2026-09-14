@@ -1,4 +1,6 @@
-﻿using System.ComponentModel.DataAnnotations;
+using Events_API.DataAccess;
+using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations;
 using Events_API.Consts;
 using Events_API.DTOs.Events;
 using Events_API.DTOs.Events.Incoming;
@@ -8,38 +10,39 @@ using Events_API.Models;
 
 namespace Events_API.Services.Events;
 
-public class EventsService(IEventsRepository repository) : IEventService
+public class EventsService(AppDbContext context) : IEventService
 {
-    public EventDto GetEventById(Guid id)
+    public async Task<EventDto> GetEventById(Guid id)
     {
-        if (repository.Events.TryGetValue(id, out var eventData))
+        var eventData = await context.Events.FindAsync(id);
+        if (eventData is not null)
             return eventData.AsDto();
         throw new NotFoundException();
     }
 
-    public EventDto CreateEvent(CreateEventDto eventData)
+    public async Task<EventDto> CreateEvent(CreateEventDto eventData)
     {
         if (ValidateEventDto(eventData, out var errorMessage))
             throw new ValidationException(errorMessage);
 
-        if (EventExistsByTitle(eventData.Title))
+        if (await EventExistsByTitle(eventData.Title))
             throw new ConflictException(ErrorsMessages.EventAlreadyExists);
 
-        var newEvent = Event.Create(repository.NewEventId, eventData.Title, eventData.Description, eventData.StartAt,
+        var newEvent = Event.Create(Guid.NewGuid(), eventData.Title, eventData.Description, eventData.StartAt,
             eventData.EndAt, eventData.TotalSeats);
 
-        if (repository.Events.TryAdd(newEvent.Id, newEvent))
-            return newEvent.AsDto();
-
-        throw new ConflictException(ErrorsMessages.InternalServerError);
+        context.Events.Add(newEvent);
+        await context.SaveChangesAsync();
+        return newEvent.AsDto();
     }
 
-    public EventDto UpdateEvent(Guid id, CreateEventDto eventData)
+    public async Task<EventDto> UpdateEvent(Guid id, CreateEventDto eventData)
     {
         if (ValidateEventDto(eventData, out var errorMessage))
             throw new ValidationException(errorMessage);
 
-        if (repository.Events.TryGetValue(id, out var eventFound))
+        var eventFound = await context.Events.FindAsync(id);
+        if (eventFound is not null)
         {
             if (!eventFound.TryUpdateCapacity(eventData.TotalSeats))
                 throw new ValidationException(ErrorsMessages.EventCapacityCannotBeLessThanReservedSeats);
@@ -48,61 +51,65 @@ public class EventsService(IEventsRepository repository) : IEventService
             eventFound.StartAt = eventData.StartAt;
             eventFound.EndAt = eventData.EndAt;
             eventFound.Description = eventData.Description;
+            await context.SaveChangesAsync();
             return eventFound.AsDto();
         }
 
         throw new NotFoundException();
     }
 
-    public EventDto UpdateEvent(Guid id, string newTitle)
+    public async Task<EventDto> UpdateEvent(Guid id, string newTitle)
     {
-        if (EventExistsByTitle(newTitle))
+        if (await EventExistsByTitle(newTitle))
             throw new ConflictException(ErrorsMessages.EventAlreadyExists);
 
-        if (repository.Events.TryGetValue(id, out var eventFound))
+        var eventFound = await context.Events.FindAsync(id);
+        if (eventFound is not null)
         {
             eventFound.Title = newTitle;
+            await context.SaveChangesAsync();
             return eventFound.AsDto();
         }
 
         throw new NotFoundException();
     }
 
-    public void DeleteEvent(Guid id)
+    public async Task DeleteEvent(Guid id)
     {
-        if (repository.Events.Remove(id, out _) is false)
-            throw new NotFoundException();
+        var eventFound = await context.Events.FindAsync(id) ?? throw new NotFoundException();
+        context.Events.Remove(eventFound);
+        await context.SaveChangesAsync();
     }
 
-    public PaginatedResult<EventDto> GetEventsByFilters(GetEventsByFiltersDto filters)
+    public async Task<PaginatedResult<EventDto>> GetEventsByFilters(GetEventsByFiltersDto filters)
     {
         if (filters.Page < 1 || filters.PageSize < 1)
             throw new ValidationException("Pagination parameters must be greater than or equal to 1.");
 
-        var filtered = repository.Events.AsEnumerable();
+        var filtered = context.Events.AsNoTracking();
 
         if (filters.Title is not null)
-            filtered = filtered.Where(e => e.Value.Title.Contains(filters.Title, StringComparison.OrdinalIgnoreCase));
+            filtered = filtered.Where(e => e.Title.ToLower().Contains(filters.Title.ToLower()));
         if (filters.From is not null)
-            filtered = filtered.Where(e => e.Value.StartAt >= filters.From);
+            filtered = filtered.Where(e => e.StartAt >= filters.From);
         if (filters.To is not null)
-            filtered = filtered.Where(e => e.Value.StartAt <= filters.To);
+            filtered = filtered.Where(e => e.StartAt <= filters.To);
 
-        var items = filtered
-            .OrderBy(e => e.Value.StartAt)
+        var items = await filtered
+            .OrderBy(e => e.StartAt)
             .Skip((filters.Page - 1) * filters.PageSize)
             .Take(filters.PageSize)
-            .Select(e => e.Value.AsDto())
-            .ToList();
+            .Select(e => e.AsDto())
+            .ToListAsync();
 
-        var totalItems = filtered.Count();
+        var totalItems = await filtered.CountAsync();
         var totalPages = (int)Math.Ceiling((double)totalItems / filters.PageSize);
 
         return new PaginatedResult<EventDto>(items, filters.Page, filters.PageSize, totalItems, totalPages);
     }
 
-    private bool EventExistsByTitle(string title) =>
-        repository.Events.Any(e => e.Value.Title.Equals(title, StringComparison.OrdinalIgnoreCase));
+    private Task<bool> EventExistsByTitle(string title) =>
+        context.Events.AnyAsync(e => e.Title.ToLower() == title.ToLower());
 
     private static bool ValidateEventDto(CreateEventDto eventData, out string errorMessage)
     {
