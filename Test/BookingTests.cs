@@ -44,7 +44,7 @@ public class BookingTests
             DateTime.UtcNow.AddDays(1),
             DateTime.UtcNow.AddDays(2),
             totalSeats: 1);
-        using var provider = TestDatabase.CreateServiceProvider();
+        await using var provider = TestDatabase.CreateServiceProvider();
         using var scope = provider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         context.Events.Add(eventData);

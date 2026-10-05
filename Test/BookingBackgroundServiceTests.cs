@@ -1,5 +1,7 @@
 using Events_API.Background_tasks.Booking;
 using Events_API.DataAccess;
+using Events_API.Repositories.Events;
+using Events_API.Repositories.Bookings;
 using Events_API.Models;
 using Events_API.Services.Bookings;
 using Microsoft.EntityFrameworkCore;
@@ -18,6 +20,8 @@ public class BookingBackgroundServiceTests
         services.AddLogging();
         services.AddDbContext<AppDbContext>(options => options.UseInMemoryDatabase(database));
         services.AddScoped<IBookingService, BookingsService>();
+        services.AddScoped<IEventRepository, EventRepository>();
+        services.AddScoped<IBookingRepository, BookingRepository>();
         using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
         using var scope = provider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
