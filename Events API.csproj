@@ -27,6 +27,9 @@
       <Compile Remove="Test\**\*.cs" />
       <Content Remove="Test\**" />
       <None Remove="Test\**" />
+      <Compile Remove="Integration tests\**\*.cs" />
+      <Content Remove="Integration tests\**" />
+      <None Remove="Integration tests\**" />
       <Folder Include="Background tasks\" />
       <Folder Include="Services\Bookings\" />
     </ItemGroup>
