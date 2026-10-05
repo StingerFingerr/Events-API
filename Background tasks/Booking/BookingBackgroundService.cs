@@ -1,7 +1,6 @@
-using Events_API.DataAccess;
+using Events_API.Repositories.Bookings;
 using Events_API.Models;
 using Events_API.Services.Bookings;
-using Microsoft.EntityFrameworkCore;
 
 namespace Events_API.Background_tasks.Booking;
 
@@ -22,13 +21,8 @@ public class BookingBackgroundService(
                 Guid[] bookingIds;
                 await using (var scope = scopeFactory.CreateAsyncScope())
                 {
-                    var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                    bookingIds = await context.Bookings.AsNoTracking()
-                        .Where(booking => booking.Status == BookingStatus.Pending)
-                        .OrderBy(booking => booking.CreatedAt)
-                        .Take(BatchSize)
-                        .Select(booking => booking.Id)
-                        .ToArrayAsync(stoppingToken);
+                    var repository = scope.ServiceProvider.GetRequiredService<IBookingRepository>();
+                    bookingIds = await repository.GetPendingIdsAsync(BatchSize, stoppingToken);
                 }
 
                 if (bookingIds.Length == 0)
@@ -52,8 +46,8 @@ public class BookingBackgroundService(
             logger.LogInformation("Processing booking {BookingId}", bookingId);
             await Task.Delay(ExternalCallDelay, stoppingToken);
             await using var scope = scopeFactory.CreateAsyncScope();
-            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            var booking = await context.Bookings.FindAsync([bookingId], stoppingToken);
+            var repository = scope.ServiceProvider.GetRequiredService<IBookingRepository>();
+            var booking = await repository.GetByIdAsync(bookingId, stoppingToken);
             if (booking is null || booking.Status != BookingStatus.Pending)
                 return;
             var service = scope.ServiceProvider.GetRequiredService<IBookingService>();
