@@ -12,15 +12,19 @@ public sealed class BookingRepositoryTests(PostgreSqlFixture database) : Reposit
     [Fact]
     public async Task AddAsync_PersistsBookingAndReservedSeatTogether()
     {
+        // Arrange
         var eventData = CreateEvent();
         var booking = CreateBooking(eventData);
         await using (var context = Database.CreateContext())
         {
             await new EventRepository(context).AddAsync(eventData);
             Assert.True(eventData.TryReserveSeats());
+
+            // Act
             await new BookingRepository(context).AddAsync(booking);
         }
 
+        // Assert
         await using var verification = Database.CreateContext();
         var saved = await verification.Bookings.SingleAsync();
         Assert.Equal(booking.Id, saved.Id);
@@ -34,20 +38,27 @@ public sealed class BookingRepositoryTests(PostgreSqlFixture database) : Reposit
     [Fact]
     public async Task GetByIdAsync_ReturnsTrackedBookingOrNull()
     {
+        // Arrange
         var booking = CreateBooking(CreateEvent());
         await using (var seed = Database.CreateContext())
             await new BookingRepository(seed).AddAsync(booking);
 
         await using var context = Database.CreateContext();
         var repository = new BookingRepository(context);
+
+        // Act
         var found = await repository.GetByIdAsync(booking.Id);
+        var foundAgain = await repository.GetByIdAsync(booking.Id);
+        var missing = await repository.GetByIdAsync(Guid.NewGuid());
+
+        // Assert
         Assert.NotNull(found);
         Assert.Equal(booking.EventId, found.EventId);
         Assert.Equal(booking.CreatedAt, found.CreatedAt);
         Assert.Equal(BookingStatus.Pending, found.Status);
         Assert.Equal(EntityState.Unchanged, context.Entry(found).State);
-        Assert.Same(found, await repository.GetByIdAsync(booking.Id));
-        Assert.Null(await repository.GetByIdAsync(Guid.NewGuid()));
+        Assert.Same(found, foundAgain);
+        Assert.Null(missing);
     }
 
     [Theory]
@@ -58,6 +69,7 @@ public sealed class BookingRepositoryTests(PostgreSqlFixture database) : Reposit
     [InlineData(100, 3)]
     public async Task GetPendingIdsAsync_FiltersOrdersAndLimitsBatch(int batchSize, int expectedCount)
     {
+        // Arrange
         var eventData = CreateEvent();
         var pending = new[] { CreateBooking(eventData, minute: 0), CreateBooking(eventData, minute: 2), CreateBooking(eventData, minute: 4) };
         await using (var seed = Database.CreateContext())
@@ -69,7 +81,11 @@ public sealed class BookingRepositoryTests(PostgreSqlFixture database) : Reposit
         }
 
         await using var context = Database.CreateContext();
+
+        // Act
         var ids = await new BookingRepository(context).GetPendingIdsAsync(batchSize);
+
+        // Assert
         Assert.Equal(pending.Take(expectedCount).Select(b => b.Id), ids);
         Assert.Empty(context.ChangeTracker.Entries());
     }
@@ -79,11 +95,17 @@ public sealed class BookingRepositoryTests(PostgreSqlFixture database) : Reposit
     [InlineData(true)]
     public async Task GetPendingIdsAsync_ReturnsEmptyWhenNoPendingBookings(bool seedProcessed)
     {
+        // Arrange
         await using var context = Database.CreateContext();
         var repository = new BookingRepository(context);
         if (seedProcessed)
             await repository.AddAsync(CreateBooking(CreateEvent(), BookingStatus.Confirmed));
-        Assert.Empty(await repository.GetPendingIdsAsync(100));
+
+        // Act
+        var ids = await repository.GetPendingIdsAsync(100);
+
+        // Assert
+        Assert.Empty(ids);
     }
 
     [Theory]
@@ -92,6 +114,7 @@ public sealed class BookingRepositoryTests(PostgreSqlFixture database) : Reposit
     [InlineData(BookingStatus.Pending)]
     public async Task SaveChangesAsync_PersistsStatusAndProcessedAt(BookingStatus status)
     {
+        // Arrange
         var booking = CreateBooking(CreateEvent(), BookingStatus.Confirmed);
         booking.ProcessedAt = StartAt;
         await using (var seed = Database.CreateContext())
@@ -102,11 +125,14 @@ public sealed class BookingRepositoryTests(PostgreSqlFixture database) : Reposit
         {
             var repository = new BookingRepository(context);
             var tracked = (await repository.GetByIdAsync(booking.Id))!;
+
+            // Act
             tracked.Status = status;
             tracked.ProcessedAt = processedAt;
             await repository.SaveChangesAsync();
         }
 
+        // Assert
         await using var verification = Database.CreateContext();
         var saved = await verification.Bookings.SingleAsync();
         Assert.Equal(status, saved.Status);
@@ -117,9 +143,14 @@ public sealed class BookingRepositoryTests(PostgreSqlFixture database) : Reposit
     [Fact]
     public async Task AddAsync_MissingEventFailsForeignKeyAndDetachesBooking()
     {
+        // Arrange
         await using var context = Database.CreateContext();
         var booking = new Booking { Id = Guid.NewGuid(), EventId = Guid.NewGuid(), CreatedAt = StartAt, Status = BookingStatus.Pending };
+
+        // Act
         var exception = await Assert.ThrowsAsync<DbUpdateException>(() => new BookingRepository(context).AddAsync(booking));
+
+        // Assert
         var postgresException = Assert.IsType<PostgresException>(exception.InnerException);
         Assert.Equal(PostgresErrorCodes.ForeignKeyViolation, postgresException.SqlState);
         Assert.Equal("FK_bookings_events_event_id", postgresException.ConstraintName);
@@ -131,6 +162,7 @@ public sealed class BookingRepositoryTests(PostgreSqlFixture database) : Reposit
     [Fact]
     public async Task AddAsync_FailedInsertRollsBackReservedSeatUpdate()
     {
+        // Arrange
         var original = CreateBooking(CreateEvent());
         await using (var seed = Database.CreateContext())
             await new BookingRepository(seed).AddAsync(original);
@@ -139,7 +171,11 @@ public sealed class BookingRepositoryTests(PostgreSqlFixture database) : Reposit
         var eventData = (await new EventRepository(context).GetByIdAsync(original.EventId))!;
         Assert.True(eventData.TryReserveSeats());
         var duplicate = new Booking { Id = original.Id, EventId = eventData.Id, Event = eventData, CreatedAt = StartAt, Status = BookingStatus.Pending };
+
+        // Act
         var exception = await Assert.ThrowsAsync<DbUpdateException>(() => new BookingRepository(context).AddAsync(duplicate));
+
+        // Assert
         Assert.Equal(PostgresErrorCodes.UniqueViolation, Assert.IsType<PostgresException>(exception.InnerException).SqlState);
         Assert.Equal(EntityState.Detached, context.Entry(duplicate).State);
 

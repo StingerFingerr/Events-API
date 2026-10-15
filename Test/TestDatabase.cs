@@ -14,14 +14,14 @@ internal static class TestDatabase
     {
         var dbName = Guid.NewGuid().ToString();
         var services = new ServiceCollection();
-        
+
         services.AddLogging();
         services.AddDbContext<AppDbContext>(options => options.UseInMemoryDatabase(dbName));
         services.AddScoped<IEventService, EventsService>();
-        services.AddScoped<IEventRepository, EventRepository>();
+        services.AddScoped<IEventRepository, InMemoryEventRepository>();
         services.AddScoped<IBookingRepository, BookingRepository>();
         services.AddScoped<IBookingService, BookingsService>();
-        
+
         return services.BuildServiceProvider(new ServiceProviderOptions
         {
             ValidateScopes = true,

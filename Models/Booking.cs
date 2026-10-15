@@ -16,9 +16,9 @@ public class Booking
 
     public Booking()
     {
-        
+
     }
-    
+
     public void Confirm()
     {
         lock (_stateLock)

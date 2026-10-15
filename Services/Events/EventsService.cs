@@ -58,6 +58,9 @@ public class EventsService(IEventRepository eventRepository) : IEventService
 
     public async Task<EventDto> UpdateEvent(Guid id, string newTitle)
     {
+        if (string.IsNullOrWhiteSpace(newTitle) || newTitle.Length < 5)
+            throw new ValidationException(ErrorsMessages.EventTitleIsShort);
+
         if (await eventRepository.ExistsByTitleAsync(newTitle))
             throw new ConflictException(ErrorsMessages.EventAlreadyExists);
 
@@ -92,7 +95,7 @@ public class EventsService(IEventRepository eventRepository) : IEventService
 
     private static bool ValidateEventDto(CreateEventDto eventData, out string errorMessage)
     {
-        if (eventData.Title.Length <= 3)
+        if (string.IsNullOrWhiteSpace(eventData.Title) || eventData.Title.Length < 5)
         {
             errorMessage = ErrorsMessages.EventTitleIsShort;
             return true;

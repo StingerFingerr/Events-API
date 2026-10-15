@@ -17,11 +17,15 @@ public class EventRepository(AppDbContext context) : IEventRepository
             return null;
 
         await context.Entry(eventData).ReloadAsync(cancellationToken);
+        // Reload detaches the entity if another context deleted its database row.
         return context.Entry(eventData).State == EntityState.Detached ? null : eventData;
     }
 
-    public Task<bool> ExistsByTitleAsync(string title, CancellationToken cancellationToken = default) =>
-        context.Events.AnyAsync(e => e.Title.ToLower() == title.ToLower(), cancellationToken);
+    public Task<bool> ExistsByTitleAsync(string title, CancellationToken cancellationToken = default)
+    {
+        var pattern = EscapeLikePattern(title);
+        return context.Events.AnyAsync(e => EF.Functions.ILike(e.Title, pattern, "\\"), cancellationToken);
+    }
 
     public async Task<(List<Event> Items, int TotalItems)> GetByFiltersAsync(
         GetEventsByFiltersDto filters, CancellationToken cancellationToken = default)
@@ -29,7 +33,10 @@ public class EventRepository(AppDbContext context) : IEventRepository
         var filtered = context.Events.AsNoTracking();
 
         if (filters.Title is not null)
-            filtered = filtered.Where(e => e.Title.ToLower().Contains(filters.Title.ToLower()));
+        {
+            var pattern = $"%{EscapeLikePattern(filters.Title)}%";
+            filtered = filtered.Where(e => EF.Functions.ILike(e.Title, pattern, "\\"));
+        }
         if (filters.From is not null)
             filtered = filtered.Where(e => e.StartAt >= filters.From);
         if (filters.To is not null)
@@ -58,4 +65,7 @@ public class EventRepository(AppDbContext context) : IEventRepository
 
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default) =>
         await context.SaveChangesAsync(cancellationToken);
+
+    private static string EscapeLikePattern(string value) =>
+        value.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
 }

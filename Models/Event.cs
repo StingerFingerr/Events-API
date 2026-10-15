@@ -18,9 +18,9 @@ public class Event
 
     public Event()
     {
-        
+
     }
-    
+
     private Event(Guid id, string title, string? description, DateTime startAt, DateTime endAt, int totalSeats)
     {
         ValidateTitle(title);
