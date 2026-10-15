@@ -1,11 +1,11 @@
-using Events_API.DataAccess;
+using Events_API.Repositories.Bookings;
+using Events_API.Repositories.Events;
 using Events_API.Exceptions;
 using Events_API.Models;
-using Microsoft.EntityFrameworkCore;
 
 namespace Events_API.Services.Bookings;
 
-public class BookingsService(AppDbContext context, ILogger<BookingsService> logger) : IBookingService
+public class BookingsService(IEventRepository eventRepository, IBookingRepository bookingRepository, ILogger<BookingsService> logger) : IBookingService
 {
     private static readonly SemaphoreSlim BookingSemaphore = new(1, 1);
 
@@ -14,10 +14,7 @@ public class BookingsService(AppDbContext context, ILogger<BookingsService> logg
         await BookingSemaphore.WaitAsync();
         try
         {
-            var eventFound = await context.Events.FindAsync(eventId) ?? throw new NotFoundException();
-            await context.Entry(eventFound).ReloadAsync();
-            if (context.Entry(eventFound).State == EntityState.Detached)
-                throw new NotFoundException();
+            var eventFound = await eventRepository.GetByIdWithReloadAsync(eventId) ?? throw new NotFoundException();
             if (!eventFound.TryReserveSeats())
                 throw new NoAvailableSeatsException();
 
@@ -31,12 +28,10 @@ public class BookingsService(AppDbContext context, ILogger<BookingsService> logg
             };
             try
             {
-                context.Bookings.Add(booking);
-                await context.SaveChangesAsync();
+                await bookingRepository.AddAsync(booking);
             }
             catch
             {
-                context.Entry(booking).State = EntityState.Detached;
                 eventFound.ReleaseSeats();
                 throw;
             }
@@ -50,11 +45,11 @@ public class BookingsService(AppDbContext context, ILogger<BookingsService> logg
     }
 
     public async Task<Booking> GetBookingByIdAsync(Guid bookingId) =>
-        await context.Bookings.FindAsync(bookingId) ?? throw new NotFoundException();
+        await bookingRepository.GetByIdAsync(bookingId) ?? throw new NotFoundException();
 
     public async Task UpdateBookingStatusAsync(Guid bookingId, BookingStatus status)
     {
-        var booking = await context.Bookings.FindAsync(bookingId) ?? throw new NotFoundException();
+        var booking = await bookingRepository.GetByIdAsync(bookingId) ?? throw new NotFoundException();
         switch (status)
         {
             case BookingStatus.Confirmed:
@@ -68,6 +63,6 @@ public class BookingsService(AppDbContext context, ILogger<BookingsService> logg
                 booking.ProcessedAt = null;
                 break;
         }
-        await context.SaveChangesAsync();
+        await bookingRepository.SaveChangesAsync();
     }
 }
