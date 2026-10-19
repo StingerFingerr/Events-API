@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Events_API.Repositories.Bookings;
 using Events_API.Repositories.Events;
 using Events_API.Exceptions;

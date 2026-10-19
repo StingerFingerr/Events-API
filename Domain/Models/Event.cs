@@ -1,5 +1,5 @@
-﻿using Events_API.Consts;
-using Events_API.DTOs.Events.Results;
+using Events_API.Consts;
+
 
 namespace Events_API.Models;
 
@@ -88,10 +88,7 @@ public class Event
         }
     }
 
-    public EventDto AsDto() =>
-        new(Id, Title, Description, StartAt, EndAt, TotalSeats, AvailableSeats);
-
-    private static void ValidateDates(DateTime startAt, DateTime endAt)
+private static void ValidateDates(DateTime startAt, DateTime endAt)
     {
         if (endAt <= startAt)
             throw new ArgumentException(ErrorsMessages.CannotCreateEventWithStartLaterThenEnd, nameof(endAt));

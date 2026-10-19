@@ -6,18 +6,18 @@ REST API для управления событиями и бронирован�
 
 | Каталог / файл | Назначение |
 | :--- | :--- |
-| `Controllers/` | HTTP-эндпоинты событий и броней |
-| `Services/` | Логика создания и изменения событий и броней |
-| `Repositories/` | Интерфейсы и реализации доступа к данным |
-| `DataAccess/` | `AppDbContext`, конфигурации сущностей и миграции |
-| `Models/`, `DTOs/` | Сущности и контракты запросов и ответов |
-| `Background tasks/` | Фоновая обработка ожидающих броней |
-| `Middlewares/`, `Exceptions/` | Обработка ошибок |
-| `Test/` | Тесты на InMemory и Moq |
+| `Events API.csproj` | Presentation: веб-проект, контроллеры, HTTP-маппинг, middleware и DI |
+| `Domain/` | Class library: сущности, доменные исключения и константы; без внешних зависимостей |
+| `Application/` | Class library: сервисы, DTO, преобразования и интерфейсы репозиториев; зависит только от Domain |
+| `Infrastructure/` | Class library: реализации репозиториев, DbContext, конфигурации, миграции и фоновая обработка; зависит от Application и Domain |
+| `Test/` | Тесты Application, Domain, фоновой обработки и регистрации DI на InMemory и Moq |
+| `Presentation.Tests/` | Тесты HTTP-контроллеров и обработки ошибок |
 | `Integration tests/` | Интеграционные тесты репозиториев на PostgreSQL |
-| `Program.cs` | DI, применение миграций, начальные данные и запуск API |
-| `docker-compose.yml` | Локальная база PostgreSQL; приложение запускается отдельно через .NET |
+| `Program.cs` | Composition root: вызовы AddApplication, AddInfrastructure, InitializeDatabaseAsync и запуск HTTP-конвейера |
+| `docker-compose.yml` | Локальная база PostgreSQL |
 | `dotnet-tools.json` | Манифест локального инструмента `dotnet-ef` |
+
+Зависимости проектов: Presentation → Application и Infrastructure; Infrastructure → Application и Domain; Application → Domain. У Application нет ссылки на Infrastructure. Пространства имён `Events_API.*` сохранены. В Program.cs используются `AddApplication()` и `AddInfrastructure(connectionString)`. Фоновый `BookingBackgroundService` остаётся в Infrastructure как адаптер хостинга .NET; операции бронирования выполняются через Application. Основной Test ссылается на Application и Infrastructure; интеграционные тесты — на Infrastructure. Только Presentation.Tests зависит от веб-проекта, поскольку проверяет HTTP-слой.
 
 ---
 
@@ -80,7 +80,7 @@ dotnet build "Events API.sln" --no-restore
 dotnet run --project "Events API.csproj" --launch-profile http
 ```
 
-**Схема БД управляется миграциями EF Core.** После `builder.Build()` приложение создаёт DI scope, получает `AppDbContext` и вызывает `db.Database.Migrate()`. При запуске автоматически применяются ещё не выполненные миграции. Начальная миграция `InitialCreate` создаёт таблицы `events` и `bookings`, индекс по `bookings.event_id` и внешний ключ `bookings.event_id → events.id` с каскадным удалением. Имена столбцов используют `snake_case`. Выполненные миграции учитываются в таблице `__EFMigrationsHistory`.
+**Схема БД управляется миграциями EF Core.** После `builder.Build()` приложение вызывает `app.Services.InitializeDatabaseAsync()`: Infrastructure создаёт DI scope, применяет миграции через `MigrateAsync()` и добавляет начальные данные. При запуске автоматически применяются ещё не выполненные миграции. Начальная миграция `InitialCreate` создаёт таблицы `events` и `bookings`, индекс по `bookings.event_id` и внешний ключ `bookings.event_id → events.id` с каскадным удалением. Имена столбцов используют `snake_case`. Выполненные миграции учитываются в таблице `__EFMigrationsHistory`.
 
 Для первого запуска с новой базой отдельное применение миграций не требуется. Команды для изменения схемы и ручного применения описаны ниже.
 
@@ -98,7 +98,7 @@ dotnet run --project "Events API.csproj" --launch-profile http
 
 ## Миграции EF Core
 
-Исходники миграций и снимок модели находятся в `DataAccess/Migrations` и должны сохраняться в репозитории вместе с изменениями моделей. Вместо `EnsureCreated()` используется `Migrate()`; изменения моделей сами по себе не меняют схему — для них нужна новая миграция.
+Исходники миграций и снимок модели находятся в `Infrastructure/DataAccess/Migrations` и должны сохраняться в репозитории вместе с изменениями моделей. Вместо `EnsureCreated()` используется `Migrate()`; изменения моделей сами по себе не меняют схему — для них нужна новая миграция.
 
 Все команды выполняются из корня репозитория. Сначала восстановите пакеты и локальный инструмент EF Core, версия которого зафиксирована в `dotnet-tools.json`:
 
@@ -110,7 +110,7 @@ dotnet tool restore
 После изменения модели или конфигураций создайте миграцию с описательным названием:
 
 ```bash
-dotnet ef migrations add AddEventLocation --project "Events API.csproj" --output-dir DataAccess/Migrations
+dotnet ef migrations add AddEventLocation --project "Infrastructure/Infrastructure.csproj" --startup-project "Events API.csproj" --output-dir DataAccess/Migrations
 ```
 
 `AddEventLocation` — пример имени; замените его на название своего изменения. `InitialCreate` уже включена в проект, повторно создавать её не нужно. Проверьте сгенерированные операции `Up` и `Down` перед применением.
@@ -118,22 +118,22 @@ dotnet ef migrations add AddEventLocation --project "Events API.csproj" --output
 Применить все ожидающие миграции вручную:
 
 ```bash
-dotnet ef database update --project "Events API.csproj"
+dotnet ef database update --project "Infrastructure/Infrastructure.csproj" --startup-project "Events API.csproj"
 ```
 
-Команда использует `ConnectionStrings:DefaultConnection`; базу PostgreSQL нужно предварительно запустить. При обычном запуске API тот же результат достигается автоматически через `db.Database.Migrate()`.
+Команда использует `ConnectionStrings:DefaultConnection`; базу PostgreSQL нужно предварительно запустить. При обычном запуске API тот же результат достигается автоматически через `InitializeDatabaseAsync()`.
 
 Показать список миграций и проверить, нет ли изменений модели без миграции:
 
 ```bash
-dotnet ef migrations list --project "Events API.csproj"
-dotnet ef migrations has-pending-model-changes --project "Events API.csproj"
+dotnet ef migrations list --project "Infrastructure/Infrastructure.csproj" --startup-project "Events API.csproj"
+dotnet ef migrations has-pending-model-changes --project "Infrastructure/Infrastructure.csproj" --startup-project "Events API.csproj"
 ```
 
 Получить SQL для просмотра или отдельного применения:
 
 ```bash
-dotnet ef migrations script --project "Events API.csproj" --output migrations.sql
+dotnet ef migrations script --project "Infrastructure/Infrastructure.csproj" --startup-project "Events API.csproj" --output migrations.sql
 ```
 
 ### База, созданная прежней версией приложения
@@ -153,11 +153,12 @@ dotnet ef migrations script --project "Events API.csproj" --output migrations.sq
 
 ## Запуск тестов
 
-В решении два тестовых проекта:
+В решении три тестовых проекта:
 
 | Проект | Что проверяет | Требования |
 | :--- | :--- | :--- |
-| `Test/Test.csproj` | Сервисы, контроллер броней, модель брони и фоновую обработку; использует EF Core InMemory и Moq | .NET SDK 10; Docker и PostgreSQL не нужны |
+| `Test/Test.csproj` | Сервисы, модель брони, регистрацию DI и фоновую обработку; использует EF Core InMemory и Moq | .NET SDK 10; Docker и PostgreSQL не нужны |
+| `Presentation.Tests/Presentation.Tests.csproj` | Контроллер броней и HTTP-маппинг исключений; ссылается на веб-проект | .NET SDK 10; Docker и PostgreSQL не нужны |
 | `Integration tests/Integration tests.csproj` | Все методы обоих репозиториев на настоящем PostgreSQL через Testcontainers | .NET SDK 10 и работающий Docker с Linux-контейнерами |
 
 Тесты InMemory создают отдельную базу для каждого экземпляра тестового класса. Scoped-сервисы и репозитории получают зависимости из DI; параллельные запросы бронирования используют отдельные scope. Для поиска событий в этих тестах зарегистрирована тестовая реализация `InMemoryEventRepository`, поскольку PostgreSQL-функция `ILIKE` не поддерживается InMemory. Эти тесты проверяют сохранение между контекстами и защиту от превышения вместимости, но не SQL и ограничения PostgreSQL.
@@ -176,6 +177,7 @@ dotnet test "Events API.sln"
 
 ```bash
 dotnet test "Test/Test.csproj"
+dotnet test "Presentation.Tests/Presentation.Tests.csproj"
 ```
 
 Только интеграционные тесты:
@@ -396,7 +398,7 @@ POST /api/events/11111111-1111-1111-1111-111111111111/book
 
 Контекст, оба репозитория и оба сервиса зарегистрированы в DI с временем жизни `Scoped`. В пределах одного scope репозитории используют общий контекст, поэтому создание брони и резервирование места сохраняются совместно. `BookingBackgroundService` получает репозиторий и сервис через `IServiceScopeFactory`, создавая отдельный scope для выборки и для каждой параллельно обрабатываемой брони.
 
-Конфигурации в `DataAccess/Configurations` задают ключи, таблицы, обязательные поля и связь «одно событие — много броней» по `EventId`. Модели содержат навигационные свойства `Event.Bookings` и `Booking.Event`. Идентификаторы создаются приложением. Название события ограничено 200 символами, описание — 500. Статус брони хранится в PostgreSQL строкой, а в JSON API передаётся числом.
+Конфигурации в `Infrastructure/DataAccess/Configurations` задают ключи, таблицы, обязательные поля и связь «одно событие — много броней» по `EventId`. Модели содержат навигационные свойства `Event.Bookings` и `Booking.Event`. Идентификаторы создаются приложением. Название события ограничено 200 символами, описание — 500. Статус брони хранится в PostgreSQL строкой, а в JSON API передаётся числом.
 
 ---
 
@@ -423,3 +425,13 @@ POST /api/events/11111111-1111-1111-1111-111111111111/book
 | Интеграционные тесты не подключаются к Docker | Запустите Docker, включите Linux-контейнеры и проверьте `docker version`; при первой загрузке образов проверьте доступ к реестру |
 | Миграция завершается ошибкой на старой базе | Проверьте, была ли база создана через `EnsureCreated()`, и прочитайте раздел о переходе выше |
 | Ошибка сохранения даты | Проверьте, что дата передана в UTC с суффиксом `Z` |
+
+## Проверка разделения на слои (sprint-7)
+
+- Сборка решения проходит без предупреждений и ошибок.
+- 50 тестов Domain/Application/Infrastructure и 7 тестов Presentation проходят, включая проверку регистрации DI и преобразования исключений в HTTP 400/404/409/500.
+- Domain не ссылается на другие проекты и пакеты; Application ссылается только на Domain. ASP.NET Core и EF Core в этих слоях не используются.
+- Миграции находятся в Infrastructure; EF Core обнаруживает InitialCreate и не находит изменений модели относительно снимка.
+- Полный dotnet test запущен: все 57 интеграционных тестов завершились ошибкой подготовки контейнера DockerUnavailableException, до выполнения проверок БД. Docker Desktop выдаёт ошибку запуска, PostgreSQL на localhost:5432 недоступен. Запуск API останавливается при подключении к БД; сценарий Swagger пока не проверен.
+
+После запуска Docker выполните `docker compose up -d postgres`, `dotnet test "Events API.sln"` и `dotnet run --project "Events API.csproj" --launch-profile http`. Откройте Swagger по адресу http://localhost:5002/swagger, создайте событие через POST /api/events с будущими датами UTC и положительным TotalSeats, затем бронь через POST /api/events/{eventId}/book. Проверьте GET /api/events/{id} и GET /api/bookings/{id}: количество доступных мест уменьшается на одно, бронь сначала Pending (0), затем Confirmed (1) после фоновой обработки. У ответа создания события статус 201; у бронирования — 202 и заголовок Location.
