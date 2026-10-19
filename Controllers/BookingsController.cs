@@ -1,5 +1,5 @@
-using Events_API.DTOs.Bookings.Results;
-using Events_API.Services.Bookings;
+using Application.DTOs.Bookings.Results;
+using Application.Services.Bookings;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Events_API.Controllers;

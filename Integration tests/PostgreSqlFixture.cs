@@ -1,5 +1,5 @@
-using Events_API.DataAccess;
-using Events_API.Models;
+using Infrastructure.DataAccess;
+using Domain.Models;
 using Microsoft.EntityFrameworkCore;
 using Testcontainers.PostgreSql;
 

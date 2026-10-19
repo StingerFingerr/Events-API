@@ -1,8 +1,6 @@
-using Events_API.DTOs.Events;
-using Events_API.DTOs.Events.Incoming;
-using Events_API.DTOs.Events.Results;
-using Events_API.Services;
-using Events_API.Services.Events;
+using Application.Services.Events;
+using Application.DTOs.Events.Incoming;
+using Application.DTOs.Events.Results;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Events_API.Controllers;

@@ -1,9 +1,11 @@
-using Events_API.Background_tasks.Booking;
-using Events_API.DataAccess;
-using Events_API.Repositories.Events;
-using Events_API.Repositories.Bookings;
-using Events_API.Models;
-using Events_API.Services.Bookings;
+using Infrastructure.Repositories.Bookings;
+using Infrastructure.Repositories.Events;
+using Infrastructure.BackgroundTasks.Booking;
+using Infrastructure.DataAccess;
+using Application.Repositories.Events;
+using Application.Repositories.Bookings;
+using Domain.Models;
+using Application.Services.Bookings;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;

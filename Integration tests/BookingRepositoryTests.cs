@@ -1,6 +1,8 @@
-using Events_API.Models;
-using Events_API.Repositories.Bookings;
-using Events_API.Repositories.Events;
+using Infrastructure.Repositories.Bookings;
+using Infrastructure.Repositories.Events;
+using Domain.Models;
+using Application.Repositories.Bookings;
+using Application.Repositories.Events;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 

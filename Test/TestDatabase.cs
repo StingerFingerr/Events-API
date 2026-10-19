@@ -1,8 +1,9 @@
-using Events_API.DataAccess;
-using Events_API.Repositories.Events;
-using Events_API.Repositories.Bookings;
-using Events_API.Services.Bookings;
-using Events_API.Services.Events;
+using Infrastructure.Repositories.Bookings;
+using Application.Services.Events;
+using Infrastructure.DataAccess;
+using Application.Repositories.Events;
+using Application.Repositories.Bookings;
+using Application.Services.Bookings;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
