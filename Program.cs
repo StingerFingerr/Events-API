@@ -1,6 +1,6 @@
-using Events_API.Application;
+using Application;
 using Events_API.Extensions;
-using Events_API.Infrastructure;
+using Infrastructure;
 using Events_API.Middlewares;
 
 var builder = WebApplication.CreateBuilder(args);

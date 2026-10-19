@@ -1,6 +1,6 @@
-using Events_API.Consts;
+using Domain.Consts;
 
-namespace Events_API.Exceptions;
+namespace Domain.Exceptions;
 
 public class NoAvailableSeatsException : Exception
 {

@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace Events_API.DTOs.Events;
+namespace Application.DTOs.Events.Incoming;
 
 public record UpdateTitleDto
 {

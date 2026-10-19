@@ -1,10 +1,10 @@
 using Microsoft.Extensions.Logging;
-using Events_API.Repositories.Bookings;
-using Events_API.Repositories.Events;
-using Events_API.Exceptions;
-using Events_API.Models;
+using Application.Repositories.Bookings;
+using Application.Repositories.Events;
+using Domain.Exceptions;
+using Domain.Models;
 
-namespace Events_API.Services.Bookings;
+namespace Application.Services.Bookings;
 
 public class BookingsService(IEventRepository eventRepository, IBookingRepository bookingRepository, ILogger<BookingsService> logger) : IBookingService
 {

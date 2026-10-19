@@ -1,12 +1,12 @@
 using Events_API.Controllers;
-using Events_API.DTOs.Bookings.Results;
-using Events_API.Models;
-using Events_API.Services.Bookings;
+using Application.DTOs.Bookings.Results;
+using Domain.Models;
+using Application.Services.Bookings;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 
-namespace Test;
+namespace Presentation.Tests;
 
 public class BookingsControllerTests
 {

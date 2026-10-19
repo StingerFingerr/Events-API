@@ -1,7 +1,7 @@
-using Events_API.Consts;
+using Domain.Consts;
 
 
-namespace Events_API.Models;
+namespace Domain.Models;
 
 public class Event
 {

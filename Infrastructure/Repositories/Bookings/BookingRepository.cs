@@ -1,8 +1,9 @@
-using Events_API.DataAccess;
-using Events_API.Models;
+using Application.Repositories.Bookings;
+using Infrastructure.DataAccess;
+using Domain.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace Events_API.Repositories.Bookings;
+namespace Infrastructure.Repositories.Bookings;
 
 public class BookingRepository(AppDbContext context) : IBookingRepository
 {

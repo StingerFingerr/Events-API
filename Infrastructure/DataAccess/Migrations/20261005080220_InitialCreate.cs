@@ -1,9 +1,9 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Events_API.DataAccess.Migrations
+namespace Infrastructure.DataAccess.Migrations
 {
     /// <inheritdoc />
     public partial class InitialCreate : Migration

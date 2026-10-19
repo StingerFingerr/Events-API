@@ -1,11 +1,11 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Events_API.Repositories.Bookings;
-using Events_API.Models;
-using Events_API.Services.Bookings;
+using Application.Repositories.Bookings;
+using Domain.Models;
+using Application.Services.Bookings;
 
-namespace Events_API.Background_tasks.Booking;
+namespace Infrastructure.BackgroundTasks.Booking;
 
 public class BookingBackgroundService(
     IServiceScopeFactory scopeFactory,

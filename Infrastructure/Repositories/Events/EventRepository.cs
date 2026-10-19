@@ -1,9 +1,10 @@
-using Events_API.DataAccess;
-using Events_API.DTOs.Events.Incoming;
-using Events_API.Models;
+using Application.Repositories.Events;
+using Infrastructure.DataAccess;
+using Application.DTOs.Events.Incoming;
+using Domain.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace Events_API.Repositories.Events;
+namespace Infrastructure.Repositories.Events;
 
 public class EventRepository(AppDbContext context) : IEventRepository
 {

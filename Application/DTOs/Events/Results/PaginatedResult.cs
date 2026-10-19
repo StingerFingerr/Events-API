@@ -1,4 +1,4 @@
-﻿namespace Events_API.DTOs.Events.Results;
+namespace Application.DTOs.Events.Results;
 
 public record PaginatedResult<T>(
     List<T> Items,

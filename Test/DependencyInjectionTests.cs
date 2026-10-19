@@ -1,10 +1,12 @@
-using Events_API.Application;
-using Events_API.DataAccess;
-using Events_API.Infrastructure;
-using Events_API.Repositories.Bookings;
-using Events_API.Repositories.Events;
-using Events_API.Services.Bookings;
-using Events_API.Services.Events;
+using Infrastructure.Repositories.Bookings;
+using Infrastructure.Repositories.Events;
+using Application;
+using Application.Services.Events;
+using Infrastructure.DataAccess;
+using Infrastructure;
+using Application.Repositories.Bookings;
+using Application.Repositories.Events;
+using Application.Services.Bookings;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 

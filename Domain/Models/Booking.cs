@@ -1,4 +1,4 @@
-﻿namespace Events_API.Models;
+namespace Domain.Models;
 
 public class Booking
 {

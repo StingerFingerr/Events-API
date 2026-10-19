@@ -1,6 +1,6 @@
-using Events_API.Models;
+using Domain.Models;
 
-namespace Events_API.Services.Bookings;
+namespace Application.Services.Bookings;
 
 public interface IBookingService
 {

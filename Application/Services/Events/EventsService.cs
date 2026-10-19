@@ -1,13 +1,13 @@
-using Events_API.Repositories.Events;
+using Application.DTOs.Events;
 using System.ComponentModel.DataAnnotations;
-using Events_API.Consts;
-using Events_API.DTOs.Events;
-using Events_API.DTOs.Events.Incoming;
-using Events_API.DTOs.Events.Results;
-using Events_API.Exceptions;
-using Events_API.Models;
+using Domain.Consts;
+using Application.DTOs.Events.Incoming;
+using Application.DTOs.Events.Results;
+using Domain.Exceptions;
+using Domain.Models;
+using Application.Repositories.Events;
 
-namespace Events_API.Services.Events;
+namespace Application.Services.Events;
 
 public class EventsService(IEventRepository eventRepository) : IEventService
 {

@@ -1,11 +1,13 @@
-using Events_API.Background_tasks.Booking;
-using Events_API.DataAccess;
-using Events_API.Repositories.Bookings;
-using Events_API.Repositories.Events;
+using Infrastructure.Repositories.Bookings;
+using Infrastructure.Repositories.Events;
+using Infrastructure.BackgroundTasks.Booking;
+using Infrastructure.DataAccess;
+using Application.Repositories.Bookings;
+using Application.Repositories.Events;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Events_API.Infrastructure;
+namespace Infrastructure;
 
 public static class DependencyInjection
 {

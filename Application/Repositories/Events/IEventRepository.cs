@@ -1,7 +1,7 @@
-using Events_API.DTOs.Events.Incoming;
-using Events_API.Models;
+using Application.DTOs.Events.Incoming;
+using Domain.Models;
 
-namespace Events_API.Repositories.Events;
+namespace Application.Repositories.Events;
 
 public interface IEventRepository
 {

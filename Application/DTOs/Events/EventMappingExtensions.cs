@@ -1,6 +1,7 @@
-using Events_API.DTOs.Events.Results;
+using Domain.Models;
+using Application.DTOs.Events.Results;
 
-namespace Events_API.Models;
+namespace Application.DTOs.Events;
 
 public static class EventMappingExtensions
 {

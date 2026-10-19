@@ -1,13 +1,12 @@
-using Events_API.DataAccess;
+using Infrastructure.DataAccess;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using System.ComponentModel.DataAnnotations;
-using Events_API.Consts;
-using Events_API.DTOs.Events;
-using Events_API.DTOs.Events.Incoming;
-using Events_API.Exceptions;
-using Events_API.Models;
-using Events_API.Services.Events;
+using Application.Services.Events;
+using Domain.Consts;
+using Application.DTOs.Events.Incoming;
+using Domain.Exceptions;
+using Domain.Models;
 
 namespace Test;
 

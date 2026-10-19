@@ -1,8 +1,7 @@
-using Events_API.DTOs.Events;
-using Events_API.DTOs.Events.Incoming;
-using Events_API.DTOs.Events.Results;
+using Application.DTOs.Events.Incoming;
+using Application.DTOs.Events.Results;
 
-namespace Events_API.Services.Events;
+namespace Application.Services.Events;
 
 public interface IEventService
 {

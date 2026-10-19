@@ -1,6 +1,6 @@
-using Events_API.Models;
+using Domain.Models;
 
-namespace Events_API.Repositories.Bookings;
+namespace Application.Repositories.Bookings;
 
 public interface IBookingRepository
 {

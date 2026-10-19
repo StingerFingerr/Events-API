@@ -1,4 +1,4 @@
-﻿namespace Events_API.Consts;
+namespace Domain.Consts;
 
 public abstract record ErrorsMessages
 {

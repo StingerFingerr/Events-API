@@ -1,6 +1,6 @@
-using Events_API.Models;
+using Domain.Models;
 
-namespace Events_API.DTOs.Bookings.Results;
+namespace Application.DTOs.Bookings.Results;
 
 public record BookingDto(
     Guid Id,

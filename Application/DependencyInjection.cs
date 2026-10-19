@@ -1,8 +1,8 @@
-using Events_API.Services.Bookings;
-using Events_API.Services.Events;
+using Application.Services.Events;
+using Application.Services.Bookings;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Events_API.Application;
+namespace Application;
 
 public static class DependencyInjection
 {

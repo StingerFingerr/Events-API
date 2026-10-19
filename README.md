@@ -17,7 +17,7 @@ REST API для управления событиями и бронирован�
 | `docker-compose.yml` | Локальная база PostgreSQL |
 | `dotnet-tools.json` | Манифест локального инструмента `dotnet-ef` |
 
-Зависимости проектов: Presentation → Application и Infrastructure; Infrastructure → Application и Domain; Application → Domain. У Application нет ссылки на Infrastructure. Пространства имён `Events_API.*` сохранены. В Program.cs используются `AddApplication()` и `AddInfrastructure(connectionString)`. Фоновый `BookingBackgroundService` остаётся в Infrastructure как адаптер хостинга .NET; операции бронирования выполняются через Application. Основной Test ссылается на Application и Infrastructure; интеграционные тесты — на Infrastructure. Только Presentation.Tests зависит от веб-проекта, поскольку проверяет HTTP-слой.
+Зависимости проектов: Presentation → Application и Infrastructure; Infrastructure → Application и Domain; Application → Domain. У Application нет ссылки на Infrastructure. Пространства имён соответствуют проектам и папкам: `Domain.*`, `Application.*`, `Infrastructure.*`; веб-слой использует `Events_API.*`, тесты — `Test`, `Integration_tests` и `Presentation.Tests`. Фоновый обработчик расположен в `Infrastructure/BackgroundTasks/Booking`. В Program.cs используются `AddApplication()` и `AddInfrastructure(connectionString)`. Фоновый `BookingBackgroundService` остаётся в Infrastructure как адаптер хостинга .NET; операции бронирования выполняются через Application. Основной Test ссылается на Application и Infrastructure; интеграционные тесты — на Infrastructure. Только Presentation.Tests зависит от веб-проекта, поскольку проверяет HTTP-слой.
 
 ---
 
