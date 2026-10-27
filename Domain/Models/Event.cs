@@ -88,7 +88,7 @@ public class Event
         }
     }
 
-private static void ValidateDates(DateTime startAt, DateTime endAt)
+    private static void ValidateDates(DateTime startAt, DateTime endAt)
     {
         if (endAt <= startAt)
             throw new ArgumentException(ErrorsMessages.CannotCreateEventWithStartLaterThenEnd, nameof(endAt));
