@@ -1,7 +1,7 @@
-using Events_API.DataAccess;
-using Events_API.Exceptions;
-using Events_API.Models;
-using Events_API.Services.Bookings;
+using Infrastructure.DataAccess;
+using Domain.Exceptions;
+using Domain.Models;
+using Application.Services.Bookings;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -60,6 +60,8 @@ public class BookingsServiceTests : IDisposable
         using var otherScope = _serviceProvider.CreateScope();
         var otherService = otherScope.ServiceProvider.GetRequiredService<IBookingService>();
         await otherService.UpdateBookingStatusAsync(booking.Id, status);
+        Assert.Equal(BookingStatus.Pending, booking.Status);
+        Assert.Null(booking.ProcessedAt);
         context.ChangeTracker.Clear();
         var saved = await service.GetBookingByIdAsync(booking.Id);
         Assert.Equal(status, saved.Status);

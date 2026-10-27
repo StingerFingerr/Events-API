@@ -1,7 +1,6 @@
-using Events_API.DataAccess;
-using Events_API.Models;
-using Events_API.Services.Bookings;
-using Events_API.Services.Events;
+using Infrastructure.DataAccess;
+using Domain.Models;
+using Application.Services.Bookings;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Test;
@@ -52,7 +51,7 @@ public class BookingTests
         var service = scope.ServiceProvider.GetRequiredService<IBookingService>();
         var firstBooking = await service.CreateBookingAsync(eventId);
 
-        firstBooking.Reject();
+        await service.UpdateBookingStatusAsync(firstBooking.Id, BookingStatus.Rejected);
         eventData.ReleaseSeats();
         await context.SaveChangesAsync();
 

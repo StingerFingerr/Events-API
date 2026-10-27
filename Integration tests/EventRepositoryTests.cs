@@ -1,5 +1,6 @@
-using Events_API.DTOs.Events.Incoming;
-using Events_API.Repositories.Events;
+using Infrastructure.Repositories.Events;
+using Application.DTOs.Events.Incoming;
+using Application.Repositories.Events;
 using Microsoft.EntityFrameworkCore;
 
 namespace Integration_tests;
@@ -324,7 +325,7 @@ public sealed class EventRepositoryTests(PostgreSqlFixture database) : Repositor
         Assert.Empty(await verification.Bookings.ToListAsync());
     }
 
-    private async Task<Events_API.Models.Event[]> SeedFilterEventsAsync()
+    private async Task<Domain.Models.Event[]> SeedFilterEventsAsync()
     {
         var events = new[]
         {

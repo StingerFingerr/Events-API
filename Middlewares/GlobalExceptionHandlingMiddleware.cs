@@ -1,5 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
-using Events_API.Exceptions;
+using System.ComponentModel.DataAnnotations;
+using Domain.Exceptions;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Events_API.Middlewares;
