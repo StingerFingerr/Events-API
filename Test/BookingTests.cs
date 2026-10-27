@@ -51,7 +51,7 @@ public class BookingTests
         var service = scope.ServiceProvider.GetRequiredService<IBookingService>();
         var firstBooking = await service.CreateBookingAsync(eventId);
 
-        firstBooking.Reject();
+        await service.UpdateBookingStatusAsync(firstBooking.Id, BookingStatus.Rejected);
         eventData.ReleaseSeats();
         await context.SaveChangesAsync();
 

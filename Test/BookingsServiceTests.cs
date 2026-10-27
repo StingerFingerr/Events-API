@@ -60,6 +60,8 @@ public class BookingsServiceTests : IDisposable
         using var otherScope = _serviceProvider.CreateScope();
         var otherService = otherScope.ServiceProvider.GetRequiredService<IBookingService>();
         await otherService.UpdateBookingStatusAsync(booking.Id, status);
+        Assert.Equal(BookingStatus.Pending, booking.Status);
+        Assert.Null(booking.ProcessedAt);
         context.ChangeTracker.Clear();
         var saved = await service.GetBookingByIdAsync(booking.Id);
         Assert.Equal(status, saved.Status);

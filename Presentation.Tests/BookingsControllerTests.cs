@@ -21,7 +21,7 @@ public class BookingsControllerTests
             Status = BookingStatus.Pending
         };
         var service = new Mock<IBookingService>();
-        service.Setup(s => s.CreateBookingAsync(booking.EventId)).ReturnsAsync(booking);
+        service.Setup(s => s.CreateBookingAsync(booking.EventId)).ReturnsAsync(BookingDto.FromBooking(booking));
         var controller = new BookingsController(service.Object);
 
         var response = await controller.PostBooking(booking.EventId);
@@ -50,7 +50,7 @@ public class BookingsControllerTests
             Status = BookingStatus.Confirmed
         };
         var service = new Mock<IBookingService>();
-        service.Setup(s => s.GetBookingByIdAsync(booking.Id)).ReturnsAsync(booking);
+        service.Setup(s => s.GetBookingByIdAsync(booking.Id)).ReturnsAsync(BookingDto.FromBooking(booking));
         var controller = new BookingsController(service.Object);
 
         var response = await controller.GetBooking(booking.Id);

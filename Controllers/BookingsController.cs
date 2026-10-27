@@ -14,7 +14,7 @@ public class BookingsController(IBookingService bookingService) : ControllerBase
     public async Task<ActionResult<BookingDto>> GetBooking(Guid id)
     {
         var booking = await bookingService.GetBookingByIdAsync(id);
-        return Ok(BookingDto.FromBooking(booking));
+        return Ok(booking);
     }
 
     [HttpPost("api/events/{eventId:guid}/book")]
@@ -24,8 +24,7 @@ public class BookingsController(IBookingService bookingService) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
     public async Task<ActionResult<BookingDto>> PostBooking(Guid eventId)
     {
-        var booking = await bookingService.CreateBookingAsync(eventId);
-        var bookingDto = BookingDto.FromBooking(booking);
+        var bookingDto = await bookingService.CreateBookingAsync(eventId);
 
         return AcceptedAtAction(nameof(GetBooking), new { id = bookingDto.Id }, bookingDto);
     }

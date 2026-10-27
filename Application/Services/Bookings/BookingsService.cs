@@ -1,3 +1,4 @@
+using Application.DTOs.Bookings.Results;
 using Domain.Consts;
 using Microsoft.Extensions.Logging;
 using Application.Repositories.Bookings;
@@ -11,7 +12,7 @@ public class BookingsService(IEventRepository eventRepository, IBookingRepositor
 {
     private static readonly SemaphoreSlim BookingSemaphore = new(1, 1);
 
-    public async Task<Booking> CreateBookingAsync(Guid eventId)
+    public async Task<BookingDto> CreateBookingAsync(Guid eventId)
     {
         await BookingSemaphore.WaitAsync();
         try
@@ -38,7 +39,7 @@ public class BookingsService(IEventRepository eventRepository, IBookingRepositor
                 throw;
             }
             logger.LogInformation("Pending booking {BookingId} was created", booking.Id);
-            return booking;
+            return BookingDto.FromBooking(booking);
         }
         finally
         {
@@ -46,8 +47,11 @@ public class BookingsService(IEventRepository eventRepository, IBookingRepositor
         }
     }
 
-    public async Task<Booking> GetBookingByIdAsync(Guid bookingId) =>
-        await bookingRepository.GetByIdAsync(bookingId) ?? throw new NotFoundException(ErrorsMessages.BookingNotFound);
+    public async Task<BookingDto> GetBookingByIdAsync(Guid bookingId)
+    {
+        var booking = await bookingRepository.GetByIdAsync(bookingId) ?? throw new NotFoundException(ErrorsMessages.BookingNotFound);
+        return BookingDto.FromBooking(booking);
+    }
 
     public async Task UpdateBookingStatusAsync(Guid bookingId, BookingStatus status)
     {
