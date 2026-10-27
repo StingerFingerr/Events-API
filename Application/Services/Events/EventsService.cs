@@ -16,7 +16,7 @@ public class EventsService(IEventRepository eventRepository) : IEventService
         var eventData = await eventRepository.GetByIdAsync(id);
         if (eventData is not null)
             return eventData.AsDto();
-        throw new NotFoundException();
+        throw new NotFoundException(ErrorsMessages.EventNotFound);
     }
 
     public async Task<EventDto> CreateEvent(CreateEventDto eventData)
@@ -53,7 +53,7 @@ public class EventsService(IEventRepository eventRepository) : IEventService
             return eventFound.AsDto();
         }
 
-        throw new NotFoundException();
+        throw new NotFoundException(ErrorsMessages.EventNotFound);
     }
 
     public async Task<EventDto> UpdateEvent(Guid id, string newTitle)
@@ -72,12 +72,12 @@ public class EventsService(IEventRepository eventRepository) : IEventService
             return eventFound.AsDto();
         }
 
-        throw new NotFoundException();
+        throw new NotFoundException(ErrorsMessages.EventNotFound);
     }
 
     public async Task DeleteEvent(Guid id)
     {
-        var eventFound = await eventRepository.GetByIdAsync(id) ?? throw new NotFoundException();
+        var eventFound = await eventRepository.GetByIdAsync(id) ?? throw new NotFoundException(ErrorsMessages.EventNotFound);
         await eventRepository.RemoveAsync(eventFound);
     }
 

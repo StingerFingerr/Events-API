@@ -1,3 +1,4 @@
+using Domain.Consts;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using Domain.Exceptions;
@@ -20,7 +21,7 @@ public class ExceptionHandlingTests
         Exception exception = error switch
         {
             "validation" => new ValidationException("Invalid request"),
-            "not-found" => new NotFoundException(),
+            "not-found" => new NotFoundException(ErrorsMessages.EventNotFound),
             "conflict" => new ConflictException("Duplicate event"),
             "no-seats" => new NoAvailableSeatsException(),
             _ => new InvalidOperationException("Unexpected error")

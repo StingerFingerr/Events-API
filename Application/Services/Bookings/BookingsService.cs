@@ -1,3 +1,4 @@
+using Domain.Consts;
 using Microsoft.Extensions.Logging;
 using Application.Repositories.Bookings;
 using Application.Repositories.Events;
@@ -15,7 +16,7 @@ public class BookingsService(IEventRepository eventRepository, IBookingRepositor
         await BookingSemaphore.WaitAsync();
         try
         {
-            var eventFound = await eventRepository.GetByIdWithReloadAsync(eventId) ?? throw new NotFoundException();
+            var eventFound = await eventRepository.GetByIdWithReloadAsync(eventId) ?? throw new NotFoundException(ErrorsMessages.EventNotFound);
             if (!eventFound.TryReserveSeats())
                 throw new NoAvailableSeatsException();
 
@@ -46,11 +47,11 @@ public class BookingsService(IEventRepository eventRepository, IBookingRepositor
     }
 
     public async Task<Booking> GetBookingByIdAsync(Guid bookingId) =>
-        await bookingRepository.GetByIdAsync(bookingId) ?? throw new NotFoundException();
+        await bookingRepository.GetByIdAsync(bookingId) ?? throw new NotFoundException(ErrorsMessages.BookingNotFound);
 
     public async Task UpdateBookingStatusAsync(Guid bookingId, BookingStatus status)
     {
-        var booking = await bookingRepository.GetByIdAsync(bookingId) ?? throw new NotFoundException();
+        var booking = await bookingRepository.GetByIdAsync(bookingId) ?? throw new NotFoundException(ErrorsMessages.BookingNotFound);
         switch (status)
         {
             case BookingStatus.Confirmed:

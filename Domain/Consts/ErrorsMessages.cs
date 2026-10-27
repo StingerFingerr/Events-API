@@ -4,6 +4,7 @@ public abstract record ErrorsMessages
 {
     public const string EventAlreadyExists = "Event with the same name already exists";
     public const string EventNotFound = "Event with not found";
+    public const string BookingNotFound = "Booking not found";
     public const string CannotUpdateEventTitle = "Cannot update event title";
     public const string CannotDeleteEvent = "Cannot delete event";
     public const string CannotCreateEventInThePast = "Cannot create an event in the past.";
