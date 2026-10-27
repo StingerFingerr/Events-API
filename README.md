@@ -19,6 +19,8 @@ REST API для управления событиями и бронирован�
 
 Зависимости проектов: Presentation → Application и Infrastructure; Infrastructure → Application и Domain; Application → Domain. У Application нет ссылки на Infrastructure. Пространства имён соответствуют проектам и папкам: `Domain.*`, `Application.*`, `Infrastructure.*`; веб-слой использует `Events_API.*`, тесты — `Test`, `Integration_tests` и `Presentation.Tests`. Фоновый обработчик расположен в `Infrastructure/BackgroundTasks/Booking`. В Program.cs используются `AddApplication()` и `AddInfrastructure(connectionString)`. Фоновый `BookingBackgroundService` остаётся в Infrastructure как адаптер хостинга .NET; операции бронирования выполняются через Application. Основной Test ссылается на Application и Infrastructure; интеграционные тесты — на Infrastructure. Только Presentation.Tests зависит от веб-проекта, поскольку проверяет HTTP-слой.
 
+Проект `Presentation.Tests` намеренно ссылается на веб-проект `Events API.csproj`, где находятся контроллеры и middleware. Тесты вызывают их напрямую, подставляя имитации сервисов для контроллеров; HTTP-сервер, база данных и фоновые службы при этом не запускаются. Проверяются результаты действий контроллеров (коды ответа, DTO и Location) и преобразование исключений в ProblemDetails. Маршрутизация и полный HTTP-конвейер этими тестами не проверяются. Контроллеры и middleware остаются в веб-проекте, чтобы не вводить отдельную библиотеку только ради тестов.
+
 ---
 
 ## Запуск приложения
