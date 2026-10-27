@@ -1,5 +1,6 @@
 using Application.Services.Events;
 using Application.Services.Bookings;
+using Application.Services.Bookings.Processing;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Application;
@@ -10,6 +11,7 @@ public static class DependencyInjection
     {
         services.AddScoped<IEventService, EventsService>();
         services.AddScoped<IBookingService, BookingsService>();
+        services.AddScoped<IPendingBookingsProcessor, PendingBookingsProcessor>();
         return services;
     }
 }
