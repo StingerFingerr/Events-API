@@ -2,15 +2,17 @@ using Application.Services.Events;
 using Application.DTOs.Events.Incoming;
 using Application.DTOs.Events.Results;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Events_API.Controllers;
 
 [ApiController]
+[Route("events")]
 [Route("api/events")]
 [Produces("application/json")]
 public class EventsController(IEventService eventService) : ControllerBase
 {
-    [HttpGet("{id:guid}", Name = nameof(GetEvent))]
+    [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(EventDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetEvent(Guid id)
@@ -28,6 +30,7 @@ public class EventsController(IEventService eventService) : ControllerBase
         return Ok(eventsByFilters);
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpPost]
     [ProducesResponseType(typeof(EventDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
@@ -41,6 +44,7 @@ public class EventsController(IEventService eventService) : ControllerBase
             createdEvent);
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpPatch("{id:guid}")]
     [ProducesResponseType(typeof(EventDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
@@ -52,6 +56,7 @@ public class EventsController(IEventService eventService) : ControllerBase
         return Ok(updatedEvent);
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpPut("{id:guid}")]
     [ProducesResponseType(typeof(EventDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
@@ -63,6 +68,7 @@ public class EventsController(IEventService eventService) : ControllerBase
         return Ok(updatedEvent);
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]

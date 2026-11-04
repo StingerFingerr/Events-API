@@ -73,9 +73,11 @@ public class BookingsService(IEventRepository eventRepository, IBookingRepositor
         }
     }
 
-    public async Task<BookingDto> GetBookingByIdAsync(Guid bookingId)
+    public async Task<BookingDto> GetBookingByIdAsync(Guid bookingId, Guid userId, UserRole role)
     {
         var booking = await bookingRepository.GetByIdAsync(bookingId) ?? throw new NotFoundException(ErrorsMessages.BookingNotFound);
+        if (role != UserRole.Admin && booking.UserId != userId)
+            throw new InsufficientPermissionsException();
         return BookingDto.FromBooking(booking);
     }
 

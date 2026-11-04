@@ -53,7 +53,8 @@ public class BookingsServiceTests : IDisposable
         await context.SaveChangesAsync();
         var service = scope.ServiceProvider.GetRequiredService<IBookingService>();
         var before = DateTime.UtcNow;
-        var booking = await service.CreateBookingAsync(eventData.Id, Guid.NewGuid());
+        var userId = Guid.NewGuid();
+        var booking = await service.CreateBookingAsync(eventData.Id, userId);
         Assert.NotEqual(Guid.Empty, booking.Id);
         Assert.Equal(BookingStatus.Pending, booking.Status);
         Assert.InRange(booking.CreatedAt, before, DateTime.UtcNow);
@@ -63,7 +64,7 @@ public class BookingsServiceTests : IDisposable
         Assert.Equal(BookingStatus.Pending, booking.Status);
         Assert.Null(booking.ProcessedAt);
         context.ChangeTracker.Clear();
-        var saved = await service.GetBookingByIdAsync(booking.Id);
+        var saved = await service.GetBookingByIdAsync(booking.Id, userId, UserRole.User);
         Assert.Equal(status, saved.Status);
         Assert.Equal(status == BookingStatus.Pending, saved.ProcessedAt is null);
         Assert.Equal(1, (await context.Events.SingleAsync()).AvailableSeats);
@@ -87,6 +88,8 @@ public class BookingsServiceTests : IDisposable
         for (var i = 1; i < 10; i++)
             await service.CreateBookingAsync(concert.Id, owner);
         await Assert.ThrowsAsync<ActiveBookingLimitExceededException>(() => service.CreateBookingAsync(concert.Id, owner));
+        await Assert.ThrowsAsync<InsufficientPermissionsException>(() => service.GetBookingByIdAsync(first.Id, other, UserRole.User));
+        Assert.Equal(first.Id, (await service.GetBookingByIdAsync(first.Id, other, UserRole.Admin)).Id);
         var separate = await service.CreateBookingAsync(concert.Id, other);
         await Assert.ThrowsAsync<InsufficientPermissionsException>(() => service.CancelBookingAsync(first.Id, other, UserRole.User));
         await service.CancelBookingAsync(first.Id, owner, UserRole.User);
@@ -103,7 +106,7 @@ public class BookingsServiceTests : IDisposable
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var service = scope.ServiceProvider.GetRequiredService<IBookingService>();
         await Assert.ThrowsAsync<NotFoundException>(() => service.CreateBookingAsync(Guid.NewGuid(), Guid.NewGuid()));
-        await Assert.ThrowsAsync<NotFoundException>(() => service.GetBookingByIdAsync(Guid.NewGuid()));
+        await Assert.ThrowsAsync<NotFoundException>(() => service.GetBookingByIdAsync(Guid.NewGuid(), Guid.NewGuid(), UserRole.User));
         await Assert.ThrowsAsync<NotFoundException>(() => service.UpdateBookingStatusAsync(Guid.NewGuid(), BookingStatus.Confirmed));
     }
 }

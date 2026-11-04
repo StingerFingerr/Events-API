@@ -6,9 +6,9 @@ namespace Application.Services.Auth;
 
 public class UserService(IUserRepository users, IPasswordHasher passwords, IJwtTokenService tokens)
 {
-    public async Task<Guid> RegisterAsync(string login, string password)
+    public async Task<Guid> RegisterAsync(string login, string password, UserRole role = UserRole.User)
     {
-        var user = User.Create(Guid.NewGuid(), login, passwords.Hash(password));
+        var user = User.Create(Guid.NewGuid(), login, passwords.Hash(password), role);
         await users.AddAsync(user);
         return user.Id;
     }
