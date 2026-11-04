@@ -71,6 +71,74 @@ public class BookingsServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task CreateBooking_PastEvent_DoesNotSaveBookingOrConsumeSeat()
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var service = scope.ServiceProvider.GetRequiredService<IBookingService>();
+        var concert = await AddConcertAsync(context, DateTime.UtcNow.AddDays(-1), 1);
+
+        await Assert.ThrowsAsync<PastEventBookingException>(
+            () => service.CreateBookingAsync(concert.Id, Guid.NewGuid()));
+
+        context.ChangeTracker.Clear();
+        Assert.False(await context.Bookings.AnyAsync());
+        Assert.Equal(1, (await context.Events.SingleAsync()).AvailableSeats);
+    }
+
+    [Fact]
+    public async Task CreateBooking_TenActiveBookings_PreventBookingAnotherEvent()
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var service = scope.ServiceProvider.GetRequiredService<IBookingService>();
+        var start = DateTime.UtcNow.AddDays(1);
+        var concert = await AddConcertAsync(context, start, 10);
+        var nextConcert = await AddConcertAsync(context, start.AddDays(1), 1);
+        var userId = Guid.NewGuid();
+        var first = await service.CreateBookingAsync(concert.Id, userId);
+        await service.UpdateBookingStatusAsync(first.Id, BookingStatus.Confirmed);
+        for (var i = 1; i < 10; i++)
+            await service.CreateBookingAsync(concert.Id, userId);
+
+        await Assert.ThrowsAsync<ActiveBookingLimitExceededException>(
+            () => service.CreateBookingAsync(nextConcert.Id, userId));
+
+        context.ChangeTracker.Clear();
+        Assert.Equal(10, await context.Bookings.CountAsync(b => b.UserId == userId));
+        Assert.False(await context.Bookings.AnyAsync(b => b.EventId == nextConcert.Id));
+        Assert.Equal(1, (await context.Events.SingleAsync(e => e.Id == nextConcert.Id)).AvailableSeats);
+    }
+
+    [Fact]
+    public async Task CreateBooking_TwoUsers_CanEachReserveTenSeats()
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var service = scope.ServiceProvider.GetRequiredService<IBookingService>();
+        var concert = await AddConcertAsync(context, DateTime.UtcNow.AddDays(1), 21);
+        var firstUser = Guid.NewGuid();
+        var secondUser = Guid.NewGuid();
+
+        foreach (var userId in new[] { firstUser, secondUser })
+        {
+            for (var i = 0; i < 10; i++)
+                await service.CreateBookingAsync(concert.Id, userId);
+        }
+
+        Assert.Equal(10, await context.Bookings.CountAsync(b => b.UserId == firstUser));
+        Assert.Equal(10, await context.Bookings.CountAsync(b => b.UserId == secondUser));
+    }
+
+    private static async Task<Event> AddConcertAsync(AppDbContext context, DateTime start, int seats)
+    {
+        var concert = Event.Create(Guid.NewGuid(), "concert", start, start.AddHours(2), seats);
+        context.Events.Add(concert);
+        await context.SaveChangesAsync();
+        return concert;
+    }
+
+    [Fact]
     public async Task ActiveLimitAndCancellation_RespectOwnerAndAdmin()
     {
         using var scope = _serviceProvider.CreateScope();
