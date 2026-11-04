@@ -55,6 +55,8 @@ public class GlobalExceptionHandlingMiddleware(
 
             NotFoundException => StatusCodes.Status404NotFound,
 
+            InsufficientPermissionsException => StatusCodes.Status403Forbidden,
+
             ConflictException => StatusCodes.Status409Conflict,
 
             NoAvailableSeatsException => StatusCodes.Status409Conflict,

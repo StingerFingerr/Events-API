@@ -30,7 +30,7 @@ public class BookingsServiceTests : IDisposable
             // Exercise contexts that have already tracked the event before acquiring the semaphore.
             await scopeContext.Events.FindAsync(eventData.Id);
             var service = requestScope.ServiceProvider.GetRequiredService<IBookingService>();
-            try { return (await service.CreateBookingAsync(eventData.Id)).Id; }
+            try { return (await service.CreateBookingAsync(eventData.Id, Guid.NewGuid())).Id; }
             catch (NoAvailableSeatsException) { return Guid.Empty; }
         })));
         context.ChangeTracker.Clear();
@@ -53,7 +53,7 @@ public class BookingsServiceTests : IDisposable
         await context.SaveChangesAsync();
         var service = scope.ServiceProvider.GetRequiredService<IBookingService>();
         var before = DateTime.UtcNow;
-        var booking = await service.CreateBookingAsync(eventData.Id);
+        var booking = await service.CreateBookingAsync(eventData.Id, Guid.NewGuid());
         Assert.NotEqual(Guid.Empty, booking.Id);
         Assert.Equal(BookingStatus.Pending, booking.Status);
         Assert.InRange(booking.CreatedAt, before, DateTime.UtcNow);
@@ -75,7 +75,7 @@ public class BookingsServiceTests : IDisposable
         using var scope = _serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var service = scope.ServiceProvider.GetRequiredService<IBookingService>();
-        await Assert.ThrowsAsync<NotFoundException>(() => service.CreateBookingAsync(Guid.NewGuid()));
+        await Assert.ThrowsAsync<NotFoundException>(() => service.CreateBookingAsync(Guid.NewGuid(), Guid.NewGuid()));
         await Assert.ThrowsAsync<NotFoundException>(() => service.GetBookingByIdAsync(Guid.NewGuid()));
         await Assert.ThrowsAsync<NotFoundException>(() => service.UpdateBookingStatusAsync(Guid.NewGuid(), BookingStatus.Confirmed));
     }

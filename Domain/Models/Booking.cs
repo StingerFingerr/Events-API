@@ -1,3 +1,5 @@
+using Domain.Exceptions;
+
 namespace Domain.Models;
 
 public class Booking
@@ -8,6 +10,7 @@ public class Booking
     public Guid Id { get; init; }
     public Event Event { get; init; } = null!;
     public Guid EventId { get; init; }
+    public Guid? UserId { get; init; }
     public DateTime CreatedAt { get; init; }
     public DateTime? ProcessedAt { get; set; }
     public BookingStatus Status { get; set; }
@@ -17,6 +20,35 @@ public class Booking
     public Booking()
     {
 
+    }
+
+    public static Booking Create(Event eventData, Guid userId)
+    {
+        if (userId == Guid.Empty)
+            throw new ArgumentException("User ID is required.", nameof(userId));
+        var now = DateTime.UtcNow;
+        if (eventData.StartAt <= now)
+            throw new PastEventBookingException();
+        return new Booking
+        {
+            Id = Guid.NewGuid(),
+            Event = eventData,
+            EventId = eventData.Id,
+            UserId = userId,
+            CreatedAt = now,
+            Status = BookingStatus.Pending
+        };
+    }
+
+    public void Cancel()
+    {
+        lock (_stateLock)
+        {
+            if (Status == BookingStatus.Cancelled)
+                throw new ConflictException("Booking is already cancelled.");
+            Status = BookingStatus.Cancelled;
+            ProcessedAt = DateTime.UtcNow;
+        }
     }
 
     public void Confirm()
@@ -58,5 +90,6 @@ public enum BookingStatus
 {
     Pending,
     Confirmed,
-    Rejected
+    Rejected,
+    Cancelled
 }

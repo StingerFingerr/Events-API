@@ -20,11 +20,12 @@ public class BookingsControllerTests
             CreatedAt = DateTime.UtcNow,
             Status = BookingStatus.Pending
         };
+        var userId = Guid.NewGuid();
         var service = new Mock<IBookingService>();
-        service.Setup(s => s.CreateBookingAsync(booking.EventId)).ReturnsAsync(BookingDto.FromBooking(booking));
+        service.Setup(s => s.CreateBookingAsync(booking.EventId, userId)).ReturnsAsync(BookingDto.FromBooking(booking));
         var controller = new BookingsController(service.Object);
 
-        var response = await controller.PostBooking(booking.EventId);
+        var response = await controller.PostBooking(booking.EventId, userId);
 
         var result = Assert.IsType<AcceptedAtActionResult>(response.Result);
         var dto = Assert.IsType<BookingDto>(result.Value);

@@ -12,23 +12,16 @@ public class BookingsService(IEventRepository eventRepository, IBookingRepositor
 {
     private static readonly SemaphoreSlim BookingSemaphore = new(1, 1);
 
-    public async Task<BookingDto> CreateBookingAsync(Guid eventId)
+    public async Task<BookingDto> CreateBookingAsync(Guid eventId, Guid userId)
     {
         await BookingSemaphore.WaitAsync();
         try
         {
             var eventFound = await eventRepository.GetByIdWithReloadAsync(eventId) ?? throw new NotFoundException(ErrorsMessages.EventNotFound);
+            var booking = Booking.Create(eventFound, userId);
             if (!eventFound.TryReserveSeats())
                 throw new NoAvailableSeatsException();
 
-            var booking = new Booking
-            {
-                Id = Guid.NewGuid(),
-                EventId = eventId,
-                Event = eventFound,
-                CreatedAt = DateTime.UtcNow,
-                Status = BookingStatus.Pending
-            };
             try
             {
                 await bookingRepository.AddAsync(booking);
@@ -56,8 +49,13 @@ public class BookingsService(IEventRepository eventRepository, IBookingRepositor
     public async Task UpdateBookingStatusAsync(Guid bookingId, BookingStatus status)
     {
         var booking = await bookingRepository.GetByIdAsync(bookingId) ?? throw new NotFoundException(ErrorsMessages.BookingNotFound);
+        if (booking.Status == BookingStatus.Cancelled)
+            throw new ConflictException("Booking is already cancelled.");
         switch (status)
         {
+            case BookingStatus.Cancelled:
+                booking.Cancel();
+                break;
             case BookingStatus.Confirmed:
                 booking.Confirm();
                 break;

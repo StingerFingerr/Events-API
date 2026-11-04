@@ -22,9 +22,12 @@ public class BookingsController(IBookingService bookingService) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<BookingDto>> PostBooking(Guid eventId)
+    public async Task<ActionResult<BookingDto>> PostBooking(Guid eventId, [FromQuery] Guid userId)
     {
-        var bookingDto = await bookingService.CreateBookingAsync(eventId);
+        if (userId == Guid.Empty)
+            return BadRequest("User ID is required.");
+
+        var bookingDto = await bookingService.CreateBookingAsync(eventId, userId);
 
         return AcceptedAtAction(nameof(GetBooking), new { id = bookingDto.Id }, bookingDto);
     }

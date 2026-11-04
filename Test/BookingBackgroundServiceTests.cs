@@ -32,7 +32,7 @@ public class BookingBackgroundServiceTests
         await context.SaveChangesAsync();
         var bookingService = scope.ServiceProvider.GetRequiredService<IBookingService>();
         for (var i = 0; i < 3; i++)
-            await bookingService.CreateBookingAsync(eventData.Id);
+            await bookingService.CreateBookingAsync(eventData.Id, Guid.NewGuid());
         using var worker = new BookingBackgroundService(provider.GetRequiredService<IServiceScopeFactory>());
         await worker.StartAsync(CancellationToken.None);
         try
