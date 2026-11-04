@@ -15,6 +15,10 @@ public class ExceptionHandlingTests
     [InlineData("not-found", 404)]
     [InlineData("conflict", 409)]
     [InlineData("no-seats", 409)]
+    [InlineData("past-event", 400)]
+    [InlineData("invalid-credentials", 401)]
+    [InlineData("insufficient-permissions", 403)]
+    [InlineData("booking-limit", 409)]
     [InlineData("unexpected", 500)]
     public async Task Middleware_MapsExceptionsToProblemDetails(string error, int expectedStatus)
     {
@@ -24,6 +28,10 @@ public class ExceptionHandlingTests
             "not-found" => new NotFoundException(ErrorsMessages.EventNotFound),
             "conflict" => new ConflictException("Duplicate event"),
             "no-seats" => new NoAvailableSeatsException(),
+            "past-event" => new PastEventBookingException(),
+            "invalid-credentials" => new InvalidCredentialsException(),
+            "insufficient-permissions" => new InsufficientPermissionsException(),
+            "booking-limit" => new ActiveBookingLimitExceededException(),
             _ => new InvalidOperationException("Unexpected error")
         };
         var context = new DefaultHttpContext();
