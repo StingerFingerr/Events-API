@@ -116,6 +116,9 @@ namespace Infrastructure.DataAccess.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Login")
+                        .IsUnique();
+
                     b.ToTable("Users");
                 });
 

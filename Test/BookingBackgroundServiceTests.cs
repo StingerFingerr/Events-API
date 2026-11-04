@@ -21,7 +21,8 @@ public class BookingBackgroundServiceTests
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddDbContext<AppDbContext>(options => options.UseInMemoryDatabase(database));
-        services.AddApplication();
+        services.AddScoped<IBookingService, BookingsService>();
+        services.AddScoped<Application.Services.Bookings.Processing.IPendingBookingsProcessor, Application.Services.Bookings.Processing.PendingBookingsProcessor>();
         services.AddScoped<IEventRepository, EventRepository>();
         services.AddScoped<IBookingRepository, BookingRepository>();
         using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });

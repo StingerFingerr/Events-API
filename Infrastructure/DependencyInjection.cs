@@ -1,5 +1,7 @@
 using Application.Services.Auth;
 using Infrastructure.Auth;
+using Application.Repositories.Users;
+using Infrastructure.Repositories.Users;
 using System.Text;
 using Infrastructure.Repositories.Bookings;
 using Infrastructure.Repositories.Events;
@@ -17,6 +19,7 @@ public static class DependencyInjection
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, string connectionString)
     {
         services.AddDbContext<AppDbContext>(options => options.UseNpgsql(connectionString));
+        services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IEventRepository, EventRepository>();
         services.AddScoped<IBookingRepository, BookingRepository>();
         services.AddSingleton<IPasswordHasher, PasswordHasher>();

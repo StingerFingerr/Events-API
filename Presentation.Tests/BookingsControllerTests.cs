@@ -25,7 +25,10 @@ public class BookingsControllerTests
         service.Setup(s => s.CreateBookingAsync(booking.EventId, userId)).ReturnsAsync(BookingDto.FromBooking(booking));
         var controller = new BookingsController(service.Object);
 
-        var response = await controller.PostBooking(booking.EventId, userId);
+        controller.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() };
+        controller.HttpContext.User = new System.Security.Claims.ClaimsPrincipal(
+            new System.Security.Claims.ClaimsIdentity([new System.Security.Claims.Claim("sub", userId.ToString())], "Bearer"));
+        var response = await controller.PostBooking(booking.EventId);
 
         var result = Assert.IsType<AcceptedAtActionResult>(response.Result);
         var dto = Assert.IsType<BookingDto>(result.Value);

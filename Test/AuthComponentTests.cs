@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Cryptography;
 using System.Text;
@@ -19,6 +20,28 @@ public class AuthComponentTests
         Assert.True(hasher.Verify("abc", hash));
         Assert.False(hasher.Verify("ABC", hash));
         Assert.False(hasher.Verify("abc", new string('X', 64)));
+    }
+
+    [Fact]
+    public async Task RegisterAndLogin_StoreOnlyHashAndIssueTokenForCorrectPassword()
+    {
+        using var provider = TestDatabase.CreateServiceProvider();
+        using var scope = provider.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<Infrastructure.DataAccess.AppDbContext>();
+        var passwords = new PasswordHasher();
+        var tokens = new Moq.Mock<Application.Services.Auth.IJwtTokenService>();
+        tokens.Setup(t => t.Generate(Moq.It.IsAny<User>())).Returns("signed-token");
+        var service = new Application.Services.Auth.UserService(
+            new Infrastructure.Repositories.Users.UserRepository(db), passwords, tokens.Object);
+        var id = await service.RegisterAsync("alice", "pass");
+        db.ChangeTracker.Clear();
+        var saved = await db.Users.FindAsync(id);
+        Assert.NotNull(saved);
+        Assert.Equal(UserRole.User, saved.Role);
+        Assert.Equal(passwords.Hash("pass"), saved.PasswordHash);
+        Assert.Equal("signed-token", await service.LoginAsync("alice", "pass"));
+        await Assert.ThrowsAsync<Domain.Exceptions.InvalidCredentialsException>(() => service.LoginAsync("alice", "wrong"));
+        await Assert.ThrowsAsync<Domain.Exceptions.InvalidCredentialsException>(() => service.LoginAsync("unknown", "pass"));
     }
 
     [Fact]

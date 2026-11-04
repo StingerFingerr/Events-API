@@ -57,6 +57,9 @@ public class GlobalExceptionHandlingMiddleware(
 
             InsufficientPermissionsException => StatusCodes.Status403Forbidden,
 
+            PastEventBookingException => StatusCodes.Status400BadRequest,
+            InvalidCredentialsException => StatusCodes.Status401Unauthorized,
+
             ConflictException => StatusCodes.Status409Conflict,
 
             NoAvailableSeatsException => StatusCodes.Status409Conflict,

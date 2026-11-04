@@ -1,6 +1,8 @@
 using Application.DTOs.Bookings.Results;
 using Application.Services.Bookings;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using Domain.Models;
 
 namespace Events_API.Controllers;
 
@@ -17,18 +19,32 @@ public class BookingsController(IBookingService bookingService) : ControllerBase
         return Ok(booking);
     }
 
+    [Authorize]
     [HttpPost("api/events/{eventId:guid}/book")]
     [ProducesResponseType(typeof(BookingDto), StatusCodes.Status202Accepted)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
-    public async Task<ActionResult<BookingDto>> PostBooking(Guid eventId, [FromQuery] Guid userId)
+    public async Task<ActionResult<BookingDto>> PostBooking(Guid eventId)
     {
-        if (userId == Guid.Empty)
-            return BadRequest("User ID is required.");
+        if (!TryGetUserId(out var userId))
+            return Unauthorized();
 
         var bookingDto = await bookingService.CreateBookingAsync(eventId, userId);
 
         return AcceptedAtAction(nameof(GetBooking), new { id = bookingDto.Id }, bookingDto);
     }
+
+    [Authorize]
+    [HttpDelete("api/bookings/{id:guid}")]
+    public async Task<ActionResult<BookingDto>> Cancel(Guid id)
+    {
+        if (!TryGetUserId(out var userId))
+            return Unauthorized();
+        var role = User.IsInRole(nameof(UserRole.Admin)) ? UserRole.Admin : UserRole.User;
+        return Ok(await bookingService.CancelBookingAsync(id, userId, role));
+    }
+
+    private bool TryGetUserId(out Guid userId) =>
+        Guid.TryParse(User.FindFirst("sub")?.Value, out userId) && userId != Guid.Empty;
 }
