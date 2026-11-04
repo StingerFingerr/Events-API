@@ -20,7 +20,7 @@ public class UserRepository(AppDbContext context) : IUserRepository
             await context.SaveChangesAsync();
         }
         catch (DbUpdateException ex) when (ex.InnerException is PostgresException
-               { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: "IX_Users_Login" })
+        { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: "IX_Users_Login" })
         {
             context.Entry(user).State = EntityState.Detached;
             throw new ConflictException("Login is already registered.");
