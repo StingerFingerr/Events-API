@@ -11,7 +11,16 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddProblemDetails();
 builder.Services.AddControllersWithOptions();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.OpenApiSecurityScheme
+    {
+        Type = Microsoft.OpenApi.SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT"
+    });
+    options.OperationFilter<BearerSecurityFilter>();
+});
 builder.Services.AddApplication();
 builder.Services.Configure<Infrastructure.Auth.JwtOptions>(builder.Configuration.GetRequiredSection(Infrastructure.Auth.JwtOptions.SectionName));
 var jwt = builder.Configuration.GetRequiredSection(JwtOptions.SectionName).Get<JwtOptions>()!;
