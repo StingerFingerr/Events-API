@@ -9,6 +9,7 @@ builder.Services.AddProblemDetails();
 builder.Services.AddControllersWithOptions();
 builder.Services.AddSwaggerGen();
 builder.Services.AddApplication();
+builder.Services.Configure<Infrastructure.Auth.JwtOptions>(builder.Configuration.GetRequiredSection(Infrastructure.Auth.JwtOptions.SectionName));
 builder.Services.AddInfrastructure(
     builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("DefaultConnection is not configured."));
