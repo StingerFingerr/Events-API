@@ -23,8 +23,10 @@ public sealed class PostgreSqlFixture : IAsyncLifetime
 
     public async Task DisposeAsync() => await _container.DisposeAsync();
 
+    public string ConnectionString => _container.GetConnectionString();
+
     public AppDbContext CreateContext() => new(new DbContextOptionsBuilder<AppDbContext>()
-        .UseNpgsql(_container.GetConnectionString())
+        .UseNpgsql(ConnectionString)
         .Options);
 
     public async Task ResetDatabaseAsync()

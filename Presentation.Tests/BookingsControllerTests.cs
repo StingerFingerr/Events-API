@@ -20,10 +20,14 @@ public class BookingsControllerTests
             CreatedAt = DateTime.UtcNow,
             Status = BookingStatus.Pending
         };
+        var userId = Guid.NewGuid();
         var service = new Mock<IBookingService>();
-        service.Setup(s => s.CreateBookingAsync(booking.EventId)).ReturnsAsync(BookingDto.FromBooking(booking));
+        service.Setup(s => s.CreateBookingAsync(booking.EventId, userId)).ReturnsAsync(BookingDto.FromBooking(booking));
         var controller = new BookingsController(service.Object);
 
+        controller.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() };
+        controller.HttpContext.User = new System.Security.Claims.ClaimsPrincipal(
+            new System.Security.Claims.ClaimsIdentity([new System.Security.Claims.Claim("sub", userId.ToString())], "Bearer"));
         var response = await controller.PostBooking(booking.EventId);
 
         var result = Assert.IsType<AcceptedAtActionResult>(response.Result);
@@ -50,9 +54,13 @@ public class BookingsControllerTests
             Status = BookingStatus.Confirmed
         };
         var service = new Mock<IBookingService>();
-        service.Setup(s => s.GetBookingByIdAsync(booking.Id)).ReturnsAsync(BookingDto.FromBooking(booking));
+        var userId = Guid.NewGuid();
+        service.Setup(s => s.GetBookingByIdAsync(booking.Id, userId, UserRole.User)).ReturnsAsync(BookingDto.FromBooking(booking));
         var controller = new BookingsController(service.Object);
 
+        controller.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() };
+        controller.HttpContext.User = new System.Security.Claims.ClaimsPrincipal(
+            new System.Security.Claims.ClaimsIdentity([new System.Security.Claims.Claim("sub", userId.ToString())], "Bearer"));
         var response = await controller.GetBooking(booking.Id);
 
         var result = Assert.IsType<OkObjectResult>(response.Result);
