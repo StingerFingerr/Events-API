@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Domain.Consts;
 using Domain.Exceptions;
 using Microsoft.AspNetCore.Mvc;
 
@@ -37,15 +38,21 @@ public class GlobalExceptionHandlingMiddleware(
         var statusCode = MapStatusCode(ex);
 
         httpContext.Response.StatusCode = statusCode;
-        httpContext.Response.ContentType = "application/json";
 
         var error = new ProblemDetails
         {
             Status = statusCode,
-            Detail = ex.Message
+            Detail = statusCode >= StatusCodes.Status500InternalServerError
+                ? ErrorsMessages.InternalServerError
+                : ex.Message
         };
 
-        await httpContext.Response.WriteAsJsonAsync(error);
+        await httpContext.RequestServices.GetRequiredService<IProblemDetailsService>()
+            .WriteAsync(new ProblemDetailsContext
+            {
+                HttpContext = httpContext,
+                ProblemDetails = error
+            });
     }
 
     private static int MapStatusCode(Exception ex)
@@ -58,7 +65,7 @@ public class GlobalExceptionHandlingMiddleware(
             InsufficientPermissionsException => StatusCodes.Status403Forbidden,
 
             PastEventBookingException => StatusCodes.Status400BadRequest,
-            InvalidCredentialsException => StatusCodes.Status401Unauthorized,
+            InvalidCredentialsException => StatusCodes.Status400BadRequest,
 
             ConflictException => StatusCodes.Status409Conflict,
 

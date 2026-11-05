@@ -29,7 +29,8 @@ public static class DependencyInjection
                 "Jwt:Secret must contain at least 32 UTF-8 bytes.")
             .Validate(o => !string.IsNullOrWhiteSpace(o.Issuer) && !string.IsNullOrWhiteSpace(o.Audience),
                 "Jwt:Issuer and Jwt:Audience are required.")
-            .Validate(o => o.LifetimeMinutes > 0, "Jwt:LifetimeMinutes must be positive.");
+            .Validate(o => o.LifetimeMinutes > 0, "Jwt:LifetimeMinutes must be positive.")
+            .ValidateOnStart();
         services.AddHostedService<BookingBackgroundService>();
         return services;
     }

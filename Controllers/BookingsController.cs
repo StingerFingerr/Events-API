@@ -42,11 +42,13 @@ public class BookingsController(IBookingService bookingService) : ControllerBase
 
     [HttpDelete("bookings/{id:guid}")]
     [HttpDelete("api/bookings/{id:guid}")]
-    public async Task<ActionResult<BookingDto>> Cancel(Guid id)
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> Cancel(Guid id)
     {
         if (!TryGetUserId(out var userId))
             return Unauthorized();
-        return Ok(await bookingService.CancelBookingAsync(id, userId, CurrentRole));
+        await bookingService.CancelBookingAsync(id, userId, CurrentRole);
+        return NoContent();
     }
 
     private UserRole CurrentRole => User.IsInRole(nameof(UserRole.Admin)) ? UserRole.Admin : UserRole.User;

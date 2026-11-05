@@ -11,7 +11,7 @@ namespace Events_API.Controllers;
 [AllowAnonymous]
 [Route("auth")]
 [Route("api/auth")]
-public class AuthController(UserService users) : ControllerBase
+public class AuthController(IUserService users) : ControllerBase
 {
     public sealed record Credentials([Required] string Login, [Required] string Password);
 
@@ -23,10 +23,11 @@ public class AuthController(UserService users) : ControllerBase
         UserRole Role = UserRole.User);
 
     [HttpPost("register")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Register(Registration credentials)
     {
-        var id = await users.RegisterAsync(credentials.Login, credentials.Password, credentials.Role);
-        return StatusCode(StatusCodes.Status201Created, new { id });
+        await users.RegisterAsync(credentials.Login, credentials.Password, credentials.Role);
+        return NoContent();
     }
 
     [HttpPost("login")]

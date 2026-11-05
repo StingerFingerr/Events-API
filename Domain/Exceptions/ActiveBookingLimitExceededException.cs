@@ -1,3 +1,4 @@
 namespace Domain.Exceptions;
 
-public class ActiveBookingLimitExceededException() : ConflictException("The active booking limit has been reached.");
+public class ActiveBookingLimitExceededException(int limit)
+    : ConflictException($"The active booking limit of {limit} bookings per user has been reached.");

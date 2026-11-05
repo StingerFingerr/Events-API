@@ -22,7 +22,7 @@ public class BookingsService(IEventRepository eventRepository, IBookingRepositor
             ?? throw new NotFoundException(ErrorsMessages.EventNotFound);
         var booking = Booking.Create(eventFound, userId);
         if (await bookingRepository.CountActiveAsync(userId) >= MaxActiveBookingsPerUser)
-            throw new ActiveBookingLimitExceededException();
+            throw new ActiveBookingLimitExceededException(MaxActiveBookingsPerUser);
         if (!eventFound.TryReserveSeats())
             throw new NoAvailableSeatsException();
 

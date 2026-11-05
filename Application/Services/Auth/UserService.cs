@@ -4,7 +4,7 @@ using Domain.Models;
 
 namespace Application.Services.Auth;
 
-public class UserService(IUserRepository users, IPasswordHasher passwords, IJwtTokenService tokens)
+public class UserService(IUserRepository users, IPasswordHasher passwords, IJwtTokenService tokens) : IUserService
 {
     public async Task<Guid> RegisterAsync(string login, string password, UserRole role = UserRole.User)
     {

@@ -6,6 +6,7 @@ using Application;
 using Events_API.Extensions;
 using Infrastructure;
 using Events_API.Middlewares;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,10 +23,12 @@ builder.Services.AddSwaggerGen(options =>
     options.OperationFilter<BearerSecurityFilter>();
 });
 builder.Services.AddApplication();
-builder.Services.Configure<Infrastructure.Auth.JwtOptions>(builder.Configuration.GetRequiredSection(Infrastructure.Auth.JwtOptions.SectionName));
-var jwt = builder.Configuration.GetRequiredSection(JwtOptions.SectionName).Get<JwtOptions>()!;
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
+builder.Services.Configure<JwtOptions>(builder.Configuration.GetRequiredSection(JwtOptions.SectionName));
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
+builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
+    .Configure<IOptions<JwtOptions>>((options, jwtOptions) =>
 {
+    var jwt = jwtOptions.Value;
     options.MapInboundClaims = false;
     options.TokenValidationParameters = new TokenValidationParameters
     {
@@ -51,9 +54,12 @@ builder.Host.UseDefaultServiceProvider((context, options) =>
 });
 
 var app = builder.Build();
+// Validate before database initialization so configuration errors are reported first.
+_ = app.Services.GetRequiredService<IOptions<JwtOptions>>().Value;
 await app.Services.InitializeDatabaseAsync();
 
 app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
+app.UseStatusCodePages();
 app.UseSwagger();
 app.UseSwaggerUI();
 app.UseRouting();

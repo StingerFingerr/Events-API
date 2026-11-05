@@ -139,32 +139,124 @@ public class BookingsServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ActiveLimitAndCancellation_RespectOwnerAndAdmin()
+    public async Task CreateBooking_TenActiveBookingsForSameEvent_ThrowsLimitExceeded()
     {
         using var scope = _serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var service = scope.ServiceProvider.GetRequiredService<IBookingService>();
+        var concert = await AddConcertAsync(context, DateTime.UtcNow.AddDays(1), 12);
         var owner = Guid.NewGuid();
-        var other = Guid.NewGuid();
-        var start = DateTime.UtcNow.AddDays(1);
-        var concert = Event.Create(Guid.NewGuid(), "concert", start, start.AddHours(2), 12);
-        context.Events.Add(concert);
-        await context.SaveChangesAsync();
+        for (var i = 0; i < 10; i++)
+            await service.CreateBookingAsync(concert.Id, owner);
 
-        var first = await service.CreateBookingAsync(concert.Id, owner);
-        await service.UpdateBookingStatusAsync(first.Id, BookingStatus.Confirmed);
+        await Assert.ThrowsAsync<ActiveBookingLimitExceededException>(
+            () => service.CreateBookingAsync(concert.Id, owner));
+    }
+
+    [Fact]
+    public async Task GetBooking_AnotherUser_ThrowsInsufficientPermissions()
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var service = scope.ServiceProvider.GetRequiredService<IBookingService>();
+        var (_, bookingId, _) = await PrepareConfirmedBookingAsync(scope);
+
+        await Assert.ThrowsAsync<InsufficientPermissionsException>(
+            () => service.GetBookingByIdAsync(bookingId, Guid.NewGuid(), UserRole.User));
+    }
+
+    [Fact]
+    public async Task GetBooking_Admin_CanReadAnotherUsersBooking()
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var service = scope.ServiceProvider.GetRequiredService<IBookingService>();
+        var (_, bookingId, _) = await PrepareConfirmedBookingAsync(scope);
+
+        var booking = await service.GetBookingByIdAsync(bookingId, Guid.NewGuid(), UserRole.Admin);
+
+        Assert.Equal(bookingId, booking.Id);
+    }
+
+    [Fact]
+    public async Task CancelBooking_AnotherUser_ThrowsWithoutChangingBookingOrSeats()
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var service = scope.ServiceProvider.GetRequiredService<IBookingService>();
+        var (concert, bookingId, _) = await PrepareConfirmedBookingAsync(scope);
+
+        await Assert.ThrowsAsync<InsufficientPermissionsException>(
+            () => service.CancelBookingAsync(bookingId, Guid.NewGuid(), UserRole.User));
+
+        context.ChangeTracker.Clear();
+        Assert.Equal(BookingStatus.Confirmed, (await context.Bookings.SingleAsync()).Status);
+        Assert.Equal(concert.TotalSeats - 1, (await context.Events.SingleAsync()).AvailableSeats);
+    }
+
+    [Theory]
+    [InlineData(UserRole.User)]
+    [InlineData(UserRole.Admin)]
+    public async Task CancelBooking_OwnerOrAdmin_CancelsAndReleasesSeat(UserRole role)
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var service = scope.ServiceProvider.GetRequiredService<IBookingService>();
+        var (concert, bookingId, owner) = await PrepareConfirmedBookingAsync(scope);
+        var caller = role == UserRole.User ? owner : Guid.NewGuid();
+
+        var result = await service.CancelBookingAsync(bookingId, caller, role);
+
+        Assert.Equal(BookingStatus.Cancelled, result.Status);
+        context.ChangeTracker.Clear();
+        Assert.Equal(BookingStatus.Cancelled, (await context.Bookings.SingleAsync()).Status);
+        Assert.Equal(concert.TotalSeats, (await context.Events.SingleAsync()).AvailableSeats);
+    }
+
+    [Fact]
+    public async Task CancelBooking_AlreadyCancelled_ThrowsConflictWithoutReleasingAnotherSeat()
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var service = scope.ServiceProvider.GetRequiredService<IBookingService>();
+        var (concert, bookingId, owner) = await PrepareConfirmedBookingAsync(scope);
+        await service.CancelBookingAsync(bookingId, owner, UserRole.User);
+
+        await Assert.ThrowsAsync<ConflictException>(
+            () => service.CancelBookingAsync(bookingId, owner, UserRole.User));
+
+        context.ChangeTracker.Clear();
+        Assert.Equal(concert.TotalSeats, (await context.Events.SingleAsync()).AvailableSeats);
+    }
+
+    [Fact]
+    public async Task CreateBooking_AfterCancellationAtActiveLimit_AllowsReplacement()
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var service = scope.ServiceProvider.GetRequiredService<IBookingService>();
+        var (concert, bookingId, owner) = await PrepareConfirmedBookingAsync(scope);
         for (var i = 1; i < 10; i++)
             await service.CreateBookingAsync(concert.Id, owner);
-        await Assert.ThrowsAsync<ActiveBookingLimitExceededException>(() => service.CreateBookingAsync(concert.Id, owner));
-        await Assert.ThrowsAsync<InsufficientPermissionsException>(() => service.GetBookingByIdAsync(first.Id, other, UserRole.User));
-        Assert.Equal(first.Id, (await service.GetBookingByIdAsync(first.Id, other, UserRole.Admin)).Id);
-        var separate = await service.CreateBookingAsync(concert.Id, other);
-        await Assert.ThrowsAsync<InsufficientPermissionsException>(() => service.CancelBookingAsync(first.Id, other, UserRole.User));
-        await service.CancelBookingAsync(first.Id, owner, UserRole.User);
-        await Assert.ThrowsAsync<ConflictException>(() => service.CancelBookingAsync(first.Id, owner, UserRole.User));
-        await service.CreateBookingAsync(concert.Id, owner);
-        await service.CancelBookingAsync(separate.Id, Guid.NewGuid(), UserRole.Admin);
-        Assert.Equal(2, concert.AvailableSeats);
+        await service.CancelBookingAsync(bookingId, owner, UserRole.User);
+
+        var replacement = await service.CreateBookingAsync(concert.Id, owner);
+
+        Assert.NotEqual(bookingId, replacement.Id);
+        Assert.Equal(BookingStatus.Pending, replacement.Status);
+        context.ChangeTracker.Clear();
+        Assert.Equal(10, await context.Bookings.CountAsync(b =>
+            b.UserId == owner && (b.Status == BookingStatus.Pending || b.Status == BookingStatus.Confirmed)));
+        Assert.Equal(2, (await context.Events.SingleAsync()).AvailableSeats);
+    }
+
+    private static async Task<(Event Concert, Guid BookingId, Guid Owner)> PrepareConfirmedBookingAsync(IServiceScope scope)
+    {
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var service = scope.ServiceProvider.GetRequiredService<IBookingService>();
+        var concert = await AddConcertAsync(context, DateTime.UtcNow.AddDays(1), 12);
+        var owner = Guid.NewGuid();
+        var booking = await service.CreateBookingAsync(concert.Id, owner);
+        await service.UpdateBookingStatusAsync(booking.Id, BookingStatus.Confirmed);
+        return (concert, booking.Id, owner);
     }
 
     [Fact]
