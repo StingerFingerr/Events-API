@@ -7,7 +7,10 @@ using Bookings.Presentation.Controllers;
 using Events.Presentation.Controllers;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Extensions.DependencyInjection;
+using Testcontainers.Kafka;
+using Confluent.Kafka;
+using Confluent.Kafka.Admin;
+using Contracts;
 using Npgsql;
 using Users.Presentation.Controllers;
 using Integration_tests.Events;
@@ -17,26 +20,30 @@ namespace Integration_tests;
 [Collection(Events.PostgreSqlCollection.Name)]
 public class BookingJourneyTests(Events.PostgreSqlFixture database)
 {
-    private const string MessagingKey = "test-delivery-key";
 
-    private WebApplicationFactory<T> Host<T>(string name) where T : class =>
+    private WebApplicationFactory<T> Host<T>(string name, string broker) where T : class =>
         new WebApplicationFactory<T>().WithWebHostBuilder(builder =>
         {
             builder.UseSetting("ConnectionStrings:DefaultConnection",
                 new NpgsqlConnectionStringBuilder(database.ConnectionString) { Database = name }.ConnectionString);
             builder.UseSetting("Jwt:Secret", "integration-test-only-signing-key-123456789");
-            builder.UseSetting("Messaging:Key", MessagingKey);
+            builder.UseSetting("Kafka:BootstrapServers", broker);
         });
 
     [Fact]
     public async Task LastSeat_ConfirmRejectCancelAndBookAgain()
     {
-        using var users = Host<AuthController>("journey_users");
-        using var events = Host<EventsController>("journey_events");
+        await using var kafka = new KafkaBuilder("apache/kafka:3.9.1").WithKRaft().Build();
+        await kafka.StartAsync();
+        var broker = kafka.GetBootstrapAddress();
+        using var admin = new AdminClientBuilder(new AdminClientConfig { BootstrapServers = broker }).Build();
+        await admin.CreateTopicsAsync([new TopicSpecification {
+            Name = BookingTopics.BookingConfirmed, NumPartitions = 3, ReplicationFactor = 1
+        }]);
+        using var users = Host<AuthController>("journey_users", broker);
+        using var events = Host<EventsController>("journey_events", broker);
         using var eventClient = events.CreateClient();
-        using var bookings = Host<BookingsController>("journey_bookings").WithWebHostBuilder(builder =>
-            builder.ConfigureServices(services => services.AddHttpClient("events")
-                .ConfigurePrimaryHttpMessageHandler(() => events.Server.CreateHandler())));
+        using var bookings = Host<BookingsController>("journey_bookings", broker);
         using var auth = users.CreateClient();
         using var bookingClient = bookings.CreateClient();
         var credentials = new { login = Guid.NewGuid().ToString(), password = "example", role = "Admin" };
@@ -65,6 +72,17 @@ public class BookingJourneyTests(Events.PostgreSqlFixture database)
 
         var first = await Book();
         await WaitForStatus(first, BookingStatus.Confirmed);
+        using var observer = new ConsumerBuilder<string, string>(new ConsumerConfig {
+            BootstrapServers = broker, GroupId = "journey-observer", AutoOffsetReset = AutoOffsetReset.Earliest
+        }).Build();
+        observer.Subscribe(BookingTopics.BookingConfirmed);
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        var record = observer.Consume(timeout.Token);
+        var confirmed = JsonSerializer.Deserialize<BookingConfirmed>(record.Message.Value)!;
+        Assert.Equal(eventId.ToString("D"), record.Message.Key);
+        Assert.Equal(Guid.Parse(first.Segments.Last()), confirmed.BookingId);
+        Assert.Equal(eventId, confirmed.EventId);
+        Assert.Equal(1, confirmed.SeatCount);
         Assert.Equal(0, await Available());
         Assert.Equal(HttpStatusCode.Conflict, (await eventClient.DeleteAsync($"/events/{eventId}")).StatusCode);
         var visitor = new { login = Guid.NewGuid().ToString(), password = "example" };

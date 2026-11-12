@@ -1,3 +1,4 @@
+using Events.Infrastructure.Messaging;
 using System.Text;
 using Events.Infrastructure.Auth;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -11,10 +12,14 @@ using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var messagingKey = builder.Configuration["Messaging:Key"];
-if (string.IsNullOrWhiteSpace(messagingKey))
-    throw new InvalidOperationException("Messaging:Key is required.");
+var broker = builder.Configuration["Kafka:BootstrapServers"];
+if (string.IsNullOrWhiteSpace(broker))
+    throw new InvalidOperationException("Kafka:BootstrapServers is required.");
 builder.Services.AddScoped<Events.Application.Messaging.ReservationSubscriber>();
+builder.Services.AddSingleton(_ => new KafkaDecisionPublisher(broker));
+builder.Services.AddHostedService(sp => new BookingMessagesConsumer(broker,
+    sp.GetRequiredService<IServiceScopeFactory>(), sp.GetRequiredService<KafkaDecisionPublisher>(),
+    sp.GetRequiredService<ILogger<BookingMessagesConsumer>>()));
 
 builder.Services.AddProblemDetails();
 builder.Services.AddControllersWithOptions();

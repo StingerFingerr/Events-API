@@ -52,6 +52,9 @@ namespace Bookings.Infrastructure.DataAccess.Migrations
                         .HasColumnType("text")
                         .HasColumnName("status");
 
+                    b.Property<DateTime?>("UndeliveredConfirmationAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid")
                         .HasColumnName("user_id");

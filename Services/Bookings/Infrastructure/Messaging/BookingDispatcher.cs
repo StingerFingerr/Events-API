@@ -1,4 +1,4 @@
-using System.Net.Http.Json;
+using Bookings.Application.Messaging;
 using Contracts;
 using Bookings.Domain.Models;
 using Bookings.Infrastructure.DataAccess;
@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging;
 namespace Bookings.Infrastructure.Messaging;
 
 // The booking row is also the durable delivery queue. Only clear the flag after acknowledgement.
-public sealed class BookingDispatcher(IServiceScopeFactory scopes, HttpClient client,
+public sealed class BookingDispatcher(IServiceScopeFactory scopes, IBookingPublisher publisher,
     ILogger<BookingDispatcher> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stop)
@@ -44,30 +44,20 @@ public sealed class BookingDispatcher(IServiceScopeFactory scopes, HttpClient cl
         switch (booking.Status)
         {
             case BookingStatus.Pending:
-                using (var response = await Post(BookingTopics.ReserveSeats,
-                    new ReserveSeats(id, booking.EventId, booking.SeatCount), stop))
-                {
-                    var decision = await response.Content.ReadFromJsonAsync<ReservationDecision>(stop);
-                    booking.ApplyDecision((decision ?? throw new InvalidDataException("Missing decision")).Accepted);
-                }
+                await publisher.RequestSeats(new ReserveSeats(id, booking.EventId, booking.SeatCount), stop);
+                booking.MarkDelivered();
                 break;
             case BookingStatus.Confirmed:
-                using (await Post(BookingTopics.BookingConfirmed, new BookingConfirmed(id, booking.EventId,
-                    booking.UserId, booking.SeatCount, new DateTimeOffset(booking.ProcessedAt!.Value)), stop))
-                    booking.MarkDelivered();
+                // Drain confirmed deliveries left by the previous version.
+                await publisher.Confirm(new BookingConfirmed(id, booking.EventId,
+                    booking.UserId, booking.SeatCount, new DateTimeOffset(booking.ProcessedAt!.Value)), stop);
+                booking.MarkDelivered();
                 break;
             case BookingStatus.Cancelled:
-                using (await Post(BookingTopics.BookingCancelled, new BookingCancelled(id), stop))
-                    booking.MarkDelivered();
+                await publisher.Cancel(booking.EventId, new BookingCancelled(id), stop);
+                booking.MarkDelivered();
                 break;
         }
         await db.SaveChangesAsync(stop);
-    }
-
-    private async Task<HttpResponseMessage> Post<T>(string topic, T message, CancellationToken stop)
-    {
-        var response = await client.PostAsJsonAsync($"internal/messages/{topic}", message, stop);
-        try { return response.EnsureSuccessStatusCode(); }
-        catch { response.Dispose(); throw; }
     }
 }

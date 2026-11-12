@@ -1,3 +1,5 @@
+using Bookings.Infrastructure.Messaging;
+using Bookings.Application.Messaging;
 using System.Text;
 using Bookings.Infrastructure.Auth;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -11,18 +13,14 @@ using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var messagingKey = builder.Configuration["Messaging:Key"];
-if (string.IsNullOrWhiteSpace(messagingKey))
-    throw new InvalidOperationException("Messaging:Key is required.");
-builder.Services.AddHttpClient("events", client =>
-{
-    client.BaseAddress = new Uri(builder.Configuration["Messaging:EventsUrl"]!);
-    client.DefaultRequestHeaders.Add("X-Messaging-Key", messagingKey);
-    client.Timeout = TimeSpan.FromSeconds(10);
-});
-builder.Services.AddHostedService(sp => new Bookings.Infrastructure.Messaging.BookingDispatcher(
-    sp.GetRequiredService<IServiceScopeFactory>(), sp.GetRequiredService<IHttpClientFactory>().CreateClient("events"),
-    sp.GetRequiredService<ILogger<Bookings.Infrastructure.Messaging.BookingDispatcher>>()));
+var broker = builder.Configuration["Kafka:BootstrapServers"];
+if (string.IsNullOrWhiteSpace(broker))
+    throw new InvalidOperationException("Kafka:BootstrapServers is required.");
+builder.Services.AddSingleton<IBookingPublisher>(_ => new KafkaBookingPublisher(broker));
+builder.Services.AddScoped<ReservationDecisionHandler>();
+builder.Services.AddHostedService<BookingDispatcher>();
+builder.Services.AddHostedService(sp => new SeatsDecidedConsumer(broker,
+    sp.GetRequiredService<IServiceScopeFactory>(), sp.GetRequiredService<ILogger<SeatsDecidedConsumer>>()));
 
 builder.Services.AddProblemDetails();
 builder.Services.AddControllersWithOptions();

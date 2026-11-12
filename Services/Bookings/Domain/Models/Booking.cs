@@ -13,6 +13,7 @@ public sealed class Booking
     public DateTime CreatedAt { get; private init; }
     public DateTime? ProcessedAt { get; private set; }
     public BookingStatus Status { get; private set; }
+    public DateTime? UndeliveredConfirmationAt { get; private set; }
     public bool DeliveryPending { get; private set; }
 
     public static Booking Create(Guid eventId, Guid userId)
@@ -27,8 +28,11 @@ public sealed class Booking
     {
         if (Status != BookingStatus.Pending) return;
         Status = accepted ? BookingStatus.Confirmed : BookingStatus.Rejected;
-        ProcessedAt = DateTime.UtcNow;
-        DeliveryPending = accepted;
+        // Use PostgreSQL timestamp precision so retries serialize the same instant.
+        var now = DateTime.UtcNow;
+        ProcessedAt = now.AddTicks(-(now.Ticks % TimeSpan.TicksPerMicrosecond));
+        UndeliveredConfirmationAt = accepted ? ProcessedAt : null;
+        DeliveryPending = false;
     }
 
     public void Cancel()
@@ -38,6 +42,8 @@ public sealed class Booking
         ProcessedAt = DateTime.UtcNow;
         DeliveryPending = true;
     }
+
+    public void MarkConfirmationDelivered() => UndeliveredConfirmationAt = null;
 
     public void MarkDelivered() => DeliveryPending = false;
 }
