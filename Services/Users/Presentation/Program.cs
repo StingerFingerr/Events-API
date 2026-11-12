@@ -10,6 +10,13 @@ using Users.Presentation.Middlewares;
 using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
+// Shared defaults have lower priority than service settings, environment variables and command-line arguments.
+var jwtDefaults = new Microsoft.Extensions.Configuration.Json.JsonConfigurationSource
+{
+    Path = Path.Combine(AppContext.BaseDirectory, "jwtsettings.json")
+};
+jwtDefaults.ResolveFileProvider();
+builder.Configuration.Sources.Insert(0, jwtDefaults);
 
 builder.Services.AddProblemDetails();
 builder.Services.AddControllersWithOptions();
@@ -33,6 +40,9 @@ builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationSc
     options.MapInboundClaims = false;
     options.TokenValidationParameters = new TokenValidationParameters
     {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
         ValidIssuer = jwt.Issuer,
         ValidAudience = jwt.Audience,
         ValidateIssuerSigningKey = true,

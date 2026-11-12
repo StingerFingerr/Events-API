@@ -16,7 +16,7 @@ public class AuthenticationApiTests(PostgreSqlFixture database) : RepositoryTest
     [Theory]
     [InlineData("User")]
     [InlineData("Admin")]
-    public async Task Register_NewLogin_ReturnsNoContent(string role)
+    public async Task Register_AlwaysCreatesRegularUser(string role)
     {
         using var factory = CreateFactory();
         using var client = factory.CreateClient();
@@ -25,6 +25,8 @@ public class AuthenticationApiTests(PostgreSqlFixture database) : RepositoryTest
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
         Assert.Empty(await response.Content.ReadAsByteArrayAsync());
+        await using var db = Database.CreateContext();
+        Assert.Equal(UserRole.User, (await db.Users.SingleAsync()).Role);
     }
 
     [Fact]

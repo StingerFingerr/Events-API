@@ -12,6 +12,9 @@ using Events.Infrastructure.DataAccess;
 using Events.Domain.Models;
 using Microsoft.Extensions.DependencyInjection;
 using Confluent.Kafka;
+using Microsoft.EntityFrameworkCore;
+using Users.Infrastructure.DataAccess;
+using Users.Domain.Models;
 using Contracts;
 using Npgsql;
 using Users.Presentation.Controllers;
@@ -45,8 +48,16 @@ public class BookingJourneyTests(Events.PostgreSqlFixture database)
         using var bookings = Host<BookingsController>("journey_bookings", broker);
         using var auth = users.CreateClient();
         using var bookingClient = bookings.CreateClient();
-        var credentials = new { login = Guid.NewGuid().ToString(), password = "example", role = "Admin" };
+        var credentials = new { login = Guid.NewGuid().ToString(), password = "example" };
         (await auth.PostAsJsonAsync("/auth/register", credentials)).EnsureSuccessStatusCode();
+        Guid ownerId;
+        await using (var scope = users.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<UsersDbContext>();
+            var account = db.Users.Where(u => u.Login == credentials.login);
+            ownerId = await account.Select(u => u.Id).SingleAsync();
+            await account.ExecuteUpdateAsync(update => update.SetProperty(u => u.Role, UserRole.Admin));
+        }
         using var login = await auth.PostAsJsonAsync("/auth/login", credentials);
         var jwt = (await login.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("token").GetString();
         bookingClient.DefaultRequestHeaders.Authorization = eventClient.DefaultRequestHeaders.Authorization =
@@ -81,6 +92,7 @@ public class BookingJourneyTests(Events.PostgreSqlFixture database)
         Assert.Equal(eventId.ToString("D"), record.Message.Key);
         Assert.Equal(Guid.Parse(first.Segments.Last()), confirmed.BookingId);
         Assert.Equal(eventId, confirmed.EventId);
+        Assert.Equal(ownerId, confirmed.UserId);
         Assert.Equal(1, confirmed.SeatCount);
         await WaitUntil(async () => await Available() == 0);
         Assert.Equal(HttpStatusCode.Conflict, (await eventClient.DeleteAsync($"/events/{eventId}")).StatusCode);
@@ -92,6 +104,29 @@ public class BookingJourneyTests(Events.PostgreSqlFixture database)
         otherClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer",
             (await visitorLogin.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("token").GetString());
         Assert.Equal(HttpStatusCode.Forbidden, (await otherClient.DeleteAsync(first)).StatusCode);
+        using var visitorEvents = events.CreateClient();
+        var dto = new { title = "Other event", totalSeats = 2, startAt = start, endAt = start.AddHours(2) };
+        Assert.Equal(HttpStatusCode.Unauthorized, (await visitorEvents.PostAsJsonAsync("/events", dto)).StatusCode);
+        visitorEvents.DefaultRequestHeaders.Authorization = otherClient.DefaultRequestHeaders.Authorization;
+        Assert.Equal(HttpStatusCode.Forbidden, (await visitorEvents.PostAsJsonAsync("/events", dto)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await visitorEvents.PutAsJsonAsync($"/events/{eventId}", dto)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await visitorEvents.DeleteAsync($"/events/{eventId}")).StatusCode);
+        // Isolate each validation rule: issue a real token with exactly one mismatched setting.
+        foreach (var (setting, value) in new[] {
+            ("Jwt:Issuer", "another-issuer"), ("Jwt:Audience", "another-audience"),
+            ("Jwt:Secret", "different-test-only-signing-key-123456789")
+        })
+        {
+            using var mismatchedUsers = users.WithWebHostBuilder(b => b.UseSetting(setting, value));
+            using var issuer = mismatchedUsers.CreateClient();
+            using var tokenResponse = await issuer.PostAsJsonAsync("/auth/login", visitor);
+            tokenResponse.EnsureSuccessStatusCode();
+            var token = (await tokenResponse.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("token").GetString();
+            visitorEvents.DefaultRequestHeaders.Authorization = otherClient.DefaultRequestHeaders.Authorization =
+                new AuthenticationHeaderValue("Bearer", token);
+            Assert.Equal(HttpStatusCode.Unauthorized, (await visitorEvents.PostAsJsonAsync("/events", dto)).StatusCode);
+            Assert.Equal(HttpStatusCode.Unauthorized, (await otherClient.GetAsync(first)).StatusCode);
+        }
         var second = await Book();
         await WaitForStatus(second, BookingStatus.Rejected);
         (await bookingClient.DeleteAsync(first)).EnsureSuccessStatusCode();

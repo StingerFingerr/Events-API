@@ -5,6 +5,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
+    <Content Include="../../../Configuration/jwtsettings.json" Link="jwtsettings.json"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.12" />
     <ProjectReference Include="..\Application\Events.Application.csproj" />
     <ProjectReference Include="..\Infrastructure\Events.Infrastructure.csproj" />
