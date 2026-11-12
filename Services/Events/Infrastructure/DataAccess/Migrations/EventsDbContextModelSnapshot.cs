@@ -42,6 +42,11 @@ namespace Events.Infrastructure.DataAccess.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("end_at");
 
+                    b.Property<int>("HeldSeats")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer")
+                        .HasColumnName("held_seats");
+
                     b.Property<DateTime>("StartAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("start_at");

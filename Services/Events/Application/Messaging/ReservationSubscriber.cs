@@ -1,10 +1,11 @@
 using Contracts;
+using Microsoft.Extensions.Logging;
 using Events.Domain.Models;
 using Events.Application.Repositories.Events;
 
 namespace Events.Application.Messaging;
 
-public sealed class ReservationSubscriber(IReservationRepository repository)
+public sealed class ReservationSubscriber(IReservationRepository repository, ILogger<ReservationSubscriber> logger)
 {
     public async Task<ReservationDecision> Reserve(ReserveSeats message, CancellationToken ct)
     {
@@ -13,7 +14,7 @@ public sealed class ReservationSubscriber(IReservationRepository repository)
             return new(receipt.State is ReservationState.Held or ReservationState.Confirmed);
 
         var item = await repository.GetEvent(message.EventId, ct);
-        var accepted = item != null && item.StartAt > DateTime.UtcNow && item.TryReserveSeats(message.SeatCount);
+        var accepted = item != null && item.StartAt > DateTime.UtcNow && item.TryHoldSeats(message.SeatCount);
         repository.Add(new() { Id = message.BookingId, EventId = message.EventId,
             SeatCount = message.SeatCount, State = accepted ? ReservationState.Held : ReservationState.Rejected });
         await repository.Save(ct);
@@ -23,11 +24,28 @@ public sealed class ReservationSubscriber(IReservationRepository repository)
     public async Task Confirm(BookingConfirmed message, CancellationToken ct)
     {
         var receipt = await repository.GetReceipt(message.BookingId, ct);
-        if (receipt is null) throw new InvalidOperationException("Missing seat reservation.");
-        if (receipt.State != ReservationState.Held) return;
-        if (receipt.EventId != message.EventId || receipt.SeatCount != message.SeatCount)
-            throw new InvalidOperationException("Reservation does not match confirmation.");
-        receipt.State = ReservationState.Confirmed;
+        if (receipt != null && receipt.State != ReservationState.Held) return;
+        if (receipt != null && (receipt.EventId != message.EventId || receipt.SeatCount != message.SeatCount))
+        {
+            logger.LogWarning("Skipping confirmation {BookingId}: it does not match the hold", message.BookingId);
+            return;
+        }
+
+        var item = await repository.GetEvent(message.EventId, ct);
+        var accepted = item != null && (receipt != null
+            ? item.TryConfirmHold(message.SeatCount)
+            : item.TryReserveSeats(message.SeatCount));
+        if (!accepted)
+        {
+            logger.LogWarning("Skipping confirmation {BookingId} for event {EventId}: {Reason}", message.BookingId,
+                message.EventId, item == null ? "event not found" : "insufficient seats");
+        }
+
+        var state = accepted ? ReservationState.Confirmed : ReservationState.Rejected;
+        if (receipt == null)
+            repository.Add(new() { Id = message.BookingId, EventId = message.EventId, SeatCount = message.SeatCount, State = state });
+        else
+            receipt.State = state;
         await repository.Save(ct);
     }
 
@@ -42,7 +60,8 @@ public sealed class ReservationSubscriber(IReservationRepository repository)
             if (receipt.State is ReservationState.Held or ReservationState.Confirmed)
             {
                 var item = await repository.GetEvent(receipt.EventId!.Value, ct);
-                item?.ReleaseSeats(receipt.SeatCount);
+                if (receipt.State == ReservationState.Held) item?.ReleaseHold(receipt.SeatCount);
+                else item?.ReleaseSeats(receipt.SeatCount);
             }
             receipt.State = ReservationState.Cancelled;
         }

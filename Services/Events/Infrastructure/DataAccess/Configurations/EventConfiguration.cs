@@ -19,6 +19,7 @@ public class EventConfiguration : IEntityTypeConfiguration<Event>
         builder.Property(e => e.StartAt).HasColumnName("start_at").IsRequired();
         builder.Property(e => e.EndAt).HasColumnName("end_at").IsRequired();
         builder.Property(e => e.TotalSeats).HasColumnName("total_seats").IsRequired();
+        builder.Property(e => e.HeldSeats).HasColumnName("held_seats").IsConcurrencyToken();
         builder.Property(e => e.AvailableSeats).HasColumnName("available_seats").IsConcurrencyToken().IsRequired();
     }
 }

@@ -7,13 +7,13 @@ using Microsoft.Extensions.Logging;
 
 namespace Bookings.Infrastructure.Messaging;
 
-public sealed class SeatsDecidedConsumer(string bootstrapServers, IServiceScopeFactory scopes,
+public sealed class SeatsDecidedConsumer(string bootstrapServers, string consumerGroup, IServiceScopeFactory scopes,
     ILogger<SeatsDecidedConsumer> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stop)
     {
         var config = new ConsumerConfig { BootstrapServers = bootstrapServers,
-            GroupId = "bookings-reservations-v1", AutoOffsetReset = AutoOffsetReset.Earliest,
+            GroupId = consumerGroup, AutoOffsetReset = AutoOffsetReset.Earliest,
             AllowAutoCreateTopics = true, TopicMetadataRefreshIntervalMs = 3000, EnableAutoCommit = false };
         while (!stop.IsCancellationRequested)
         {

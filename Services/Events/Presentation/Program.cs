@@ -15,9 +15,13 @@ var builder = WebApplication.CreateBuilder(args);
 var broker = builder.Configuration["Kafka:BootstrapServers"];
 if (string.IsNullOrWhiteSpace(broker))
     throw new InvalidOperationException("Kafka:BootstrapServers is required.");
+var group = builder.Configuration["Kafka:ConsumerGroup"];
+if (string.IsNullOrWhiteSpace(group))
+    throw new InvalidOperationException("Kafka:ConsumerGroup is required.");
 builder.Services.AddScoped<Events.Application.Messaging.ReservationSubscriber>();
 builder.Services.AddSingleton(_ => new KafkaDecisionPublisher(broker));
-builder.Services.AddHostedService(sp => new BookingMessagesConsumer(broker,
+builder.Services.AddHostedService(sp => new BookingTopicInitializer(broker, sp.GetRequiredService<ILogger<BookingTopicInitializer>>()));
+builder.Services.AddHostedService(sp => new BookingMessagesConsumer(broker, group,
     sp.GetRequiredService<IServiceScopeFactory>(), sp.GetRequiredService<KafkaDecisionPublisher>(),
     sp.GetRequiredService<ILogger<BookingMessagesConsumer>>()));
 

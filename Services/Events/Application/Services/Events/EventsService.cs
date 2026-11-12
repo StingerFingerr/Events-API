@@ -78,7 +78,7 @@ public class EventsService(IEventRepository eventRepository) : IEventService
     public async Task DeleteEvent(Guid id)
     {
         var eventFound = await eventRepository.GetByIdAsync(id) ?? throw new NotFoundException(ErrorsMessages.EventNotFound);
-        if (eventFound.AvailableSeats != eventFound.TotalSeats)
+        if (eventFound.HeldSeats > 0 || eventFound.AvailableSeats != eventFound.TotalSeats)
             throw new ConflictException("Cannot delete an event with reserved seats.");
         await eventRepository.RemoveAsync(eventFound);
     }

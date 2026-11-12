@@ -13,6 +13,7 @@ public class Event
     public DateTime StartAt { get; set; }
     public DateTime EndAt { get; set; }
     public int TotalSeats { get; private set; }
+    public int HeldSeats { get; private set; }
     public int AvailableSeats { get; private set; }
 
     public Event()
@@ -47,13 +48,42 @@ public class Event
     public static Event Create(Guid id, string title, DateTime startAt, DateTime endAt, int totalSeats) =>
         new(id, title, null, startAt, endAt, totalSeats);
 
+    public bool TryHoldSeats(int count)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(count);
+        lock (_seatsLock)
+        {
+            if (AvailableSeats - HeldSeats < count) return false;
+            HeldSeats += count;
+            return true;
+        }
+    }
+
+    public bool TryConfirmHold(int count)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(count);
+        lock (_seatsLock)
+        {
+            if (HeldSeats < count || AvailableSeats < count) return false;
+            HeldSeats -= count;
+            AvailableSeats -= count;
+            return true;
+        }
+    }
+
+    public void ReleaseHold(int count)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(count);
+        lock (_seatsLock) HeldSeats -= count;
+    }
+
     public bool TryReserveSeats(int count = 1)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(count);
 
         lock (_seatsLock)
         {
-            if (AvailableSeats < count)
+            if (AvailableSeats - HeldSeats < count)
                 return false;
 
             AvailableSeats -= count;
@@ -78,7 +108,7 @@ public class Event
         lock (_seatsLock)
         {
             var reservedSeats = TotalSeats - AvailableSeats;
-            if (totalSeats < reservedSeats)
+            if (totalSeats < reservedSeats + HeldSeats)
                 return false;
 
             TotalSeats = totalSeats;

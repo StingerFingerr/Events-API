@@ -8,8 +8,10 @@ using Events.Presentation.Controllers;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Testcontainers.Kafka;
+using Events.Infrastructure.DataAccess;
+using Events.Domain.Models;
+using Microsoft.Extensions.DependencyInjection;
 using Confluent.Kafka;
-using Confluent.Kafka.Admin;
 using Contracts;
 using Npgsql;
 using Users.Presentation.Controllers;
@@ -33,13 +35,10 @@ public class BookingJourneyTests(Events.PostgreSqlFixture database)
     [Fact]
     public async Task LastSeat_ConfirmRejectCancelAndBookAgain()
     {
-        await using var kafka = new KafkaBuilder("apache/kafka:3.9.1").WithKRaft().Build();
+        await using var kafka = new KafkaBuilder("apache/kafka:3.9.1").WithKRaft()
+            .WithEnvironment("KAFKA_AUTO_CREATE_TOPICS_ENABLE", "false").Build();
         await kafka.StartAsync();
         var broker = kafka.GetBootstrapAddress();
-        using var admin = new AdminClientBuilder(new AdminClientConfig { BootstrapServers = broker }).Build();
-        await admin.CreateTopicsAsync([new TopicSpecification {
-            Name = BookingTopics.BookingConfirmed, NumPartitions = 3, ReplicationFactor = 1
-        }]);
         using var users = Host<AuthController>("journey_users", broker);
         using var events = Host<EventsController>("journey_events", broker);
         using var eventClient = events.CreateClient();
@@ -83,7 +82,7 @@ public class BookingJourneyTests(Events.PostgreSqlFixture database)
         Assert.Equal(Guid.Parse(first.Segments.Last()), confirmed.BookingId);
         Assert.Equal(eventId, confirmed.EventId);
         Assert.Equal(1, confirmed.SeatCount);
-        Assert.Equal(0, await Available());
+        await WaitUntil(async () => await Available() == 0);
         Assert.Equal(HttpStatusCode.Conflict, (await eventClient.DeleteAsync($"/events/{eventId}")).StatusCode);
         var visitor = new { login = Guid.NewGuid().ToString(), password = "example" };
         (await auth.PostAsJsonAsync("/auth/register", visitor)).EnsureSuccessStatusCode();
@@ -98,6 +97,55 @@ public class BookingJourneyTests(Events.PostgreSqlFixture database)
         (await bookingClient.DeleteAsync(first)).EnsureSuccessStatusCode();
         await WaitUntil(async () => await Available() == 1);
         await WaitForStatus(await Book(), BookingStatus.Confirmed);
+    }
+
+    [Fact]
+    public async Task StandaloneConfirmations_SkipInvalidRecordsThenDeductAndDeduplicate()
+    {
+        await using var kafka = new KafkaBuilder("apache/kafka:3.9.1").WithKRaft()
+            .WithEnvironment("KAFKA_AUTO_CREATE_TOPICS_ENABLE", "false").Build();
+        await kafka.StartAsync();
+        var broker = kafka.GetBootstrapAddress();
+        using var host = Host<EventsController>("confirmation_events", broker);
+        using var client = host.CreateClient();
+        var tomorrow = DateTime.UtcNow.AddDays(1);
+        var item = Event.Create(Guid.NewGuid(), "Concert", tomorrow, tomorrow.AddHours(1), 4);
+        await using (var scope = host.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<EventsDbContext>();
+            db.Events.Add(item);
+            await db.SaveChangesAsync();
+        }
+
+        using var producer = new ProducerBuilder<string, string>(new ProducerConfig { BootstrapServers = broker }).Build();
+        // Use one partition so the final valid confirmation proves earlier bad records didn't block progress.
+        Task Send(string value) => producer.ProduceAsync(BookingTopics.BookingConfirmed, new Message<string, string>
+            { Key = item.Id.ToString(), Value = value });
+        BookingConfirmed Confirmation(int seats) => new(Guid.NewGuid(), item.Id, Guid.NewGuid(), seats, DateTimeOffset.UtcNow);
+        var missing = Confirmation(1) with { EventId = Guid.NewGuid() };
+        var tooLarge = Confirmation(5);
+        var twoSeats = Confirmation(2);
+        var last = Confirmation(1);
+        await Send("not JSON");
+        await Send(JsonSerializer.Serialize(Confirmation(0)));
+        foreach (var message in new[] { missing, tooLarge, twoSeats, twoSeats, last })
+            await Send(JsonSerializer.Serialize(message));
+
+        await WaitUntil(async () => (await client.GetFromJsonAsync<JsonElement>($"/events/{item.Id}"))
+            .GetProperty("availableSeats").GetInt32() == 1
+            && await LastWasProcessed());
+
+        async Task<bool> LastWasProcessed()
+        {
+            await using var scope = host.Services.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<EventsDbContext>();
+            return (await db.Reservations.FindAsync(last.BookingId))?.State == ReservationState.Confirmed;
+        }
+
+        await using var verification = host.Services.CreateAsyncScope();
+        var receipts = verification.ServiceProvider.GetRequiredService<EventsDbContext>().Reservations;
+        Assert.Equal(ReservationState.Rejected, (await receipts.FindAsync(missing.BookingId))!.State);
+        Assert.Equal(ReservationState.Rejected, (await receipts.FindAsync(tooLarge.BookingId))!.State);
     }
 
     private static async Task WaitUntil(Func<Task<bool>> condition)
