@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Bookings": {
+      "commandName": "Project",
+      "applicationUrl": "http://localhost:5103"
+    }
+  }
+}

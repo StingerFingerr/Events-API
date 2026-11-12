@@ -1,12 +1,12 @@
-using Infrastructure.DataAccess;
+using Events.Infrastructure.DataAccess;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using System.ComponentModel.DataAnnotations;
-using Application.Services.Events;
-using Domain.Consts;
-using Application.DTOs.Events.Incoming;
-using Domain.Exceptions;
-using Domain.Models;
+using Events.Application.Services.Events;
+using Events.Domain.Consts;
+using Events.Application.DTOs.Events.Incoming;
+using Events.Domain.Exceptions;
+using Events.Domain.Models;
 
 namespace Test;
 
@@ -28,7 +28,7 @@ public class EventsFiltersTests : IDisposable
     public async Task GetEventsByFilters_WithInvalidPagination_ThrowsArgumentException(int page, int pageSize)
     {
         using var scope = _serviceProvider.CreateScope();
-        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var context = scope.ServiceProvider.GetRequiredService<EventsDbContext>();
         var service = scope.ServiceProvider.GetRequiredService<IEventService>();
         var invalidFilters = new GetEventsByFiltersDto { Page = page, PageSize = pageSize };
 
@@ -39,7 +39,7 @@ public class EventsFiltersTests : IDisposable
     public async Task CreateEvent_ShouldSaveNewEventInDatabaseWithUniqueId()
     {
         using var scope = _serviceProvider.CreateScope();
-        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var context = scope.ServiceProvider.GetRequiredService<EventsDbContext>();
         var eventsService = scope.ServiceProvider.GetRequiredService<IEventService>();
 
         var newEventDto = new CreateEventDto()
@@ -298,7 +298,7 @@ public class EventsFiltersTests : IDisposable
         await Assert.ThrowsAsync<ValidationException>(() => eventService.UpdateEvent(eventId, dateInPast));
     }
 
-    private (IEventService EventService, AppDbContext Database, Dictionary<Guid, Event> Events)
+    private (IEventService EventService, EventsDbContext Database, Dictionary<Guid, Event> Events)
         CreateServiceWithDefaultEvents()
     {
         var events = new Dictionary<Guid, Event>
@@ -309,7 +309,7 @@ public class EventsFiltersTests : IDisposable
         };
         var scope = _serviceProvider.CreateScope();
         _scopes.Add(scope);
-        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var context = scope.ServiceProvider.GetRequiredService<EventsDbContext>();
         context.Events.AddRange(events.Values);
         context.SaveChanges();
 

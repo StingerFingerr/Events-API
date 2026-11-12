@@ -1,15 +1,15 @@
-using Infrastructure.Repositories.Events;
-using Infrastructure.DataAccess;
-using Application.DTOs.Events.Incoming;
-using Domain.Models;
-using Application.Repositories.Events;
+using Events.Infrastructure.Repositories.Events;
+using Events.Infrastructure.DataAccess;
+using Events.Application.DTOs.Events.Incoming;
+using Events.Domain.Models;
+using Events.Application.Repositories.Events;
 using Microsoft.EntityFrameworkCore;
 
 namespace Test;
 
 // PostgreSQL ILIKE is covered by the integration tests. This test double lets
 // service tests keep using InMemory without provider-specific SQL functions.
-internal sealed class InMemoryEventRepository(AppDbContext context) : IEventRepository
+internal sealed class InMemoryEventRepository(EventsDbContext context) : IEventRepository
 {
     private readonly EventRepository _repository = new(context);
 

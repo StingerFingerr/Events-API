@@ -1,26 +1,48 @@
-# PostgreSQL для EventApi — совпадает с ConnectionStrings:DefaultConnection в appsettings.json
-# Запуск из корня репозитория: docker compose up -d
-# Остановка: docker compose down
-# Данные сохраняются в именованном томе eventapi_pgdata
-
 services:
-  postgres:
+  users-db:
     image: postgres:16-alpine
-    container_name: eventapi-postgres
-    restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
+      POSTGRES_DB: users
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: eventapi
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5433:5432"
     volumes:
-      - eventapi_pgdata:/var/lib/postgresql/data
+      - users_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d eventapi"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+      test: ["CMD-SHELL", "pg_isready -U postgres -d users"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+  events-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: events
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "127.0.0.1:5434:5432"
+    volumes:
+      - events_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d events"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+  bookings-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: bookings
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "127.0.0.1:5435:5432"
+    volumes:
+      - bookings_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d bookings"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
 
 volumes:
-  eventapi_pgdata:
+  users_data:
+  events_data:
+  bookings_data:

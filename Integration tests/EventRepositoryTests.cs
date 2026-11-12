@@ -1,9 +1,9 @@
-using Infrastructure.Repositories.Events;
-using Application.DTOs.Events.Incoming;
-using Application.Repositories.Events;
+using Events.Infrastructure.Repositories.Events;
+using Events.Application.DTOs.Events.Incoming;
+using Events.Application.Repositories.Events;
 using Microsoft.EntityFrameworkCore;
 
-namespace Integration_tests;
+namespace Integration_tests.Events;
 
 [Collection(PostgreSqlCollection.Name)]
 public sealed class EventRepositoryTests(PostgreSqlFixture database) : RepositoryTestBase(database)
@@ -305,13 +305,13 @@ public sealed class EventRepositoryTests(PostgreSqlFixture database) : Repositor
     }
 
     [Fact]
-    public async Task RemoveAsync_DeletesEventAndCascadesBookings()
+    public async Task RemoveAsync_DeletesEvent()
     {
         // Arrange
         await using (var seed = Database.CreateContext())
         {
             var eventData = CreateEvent();
-            seed.Bookings.Add(CreateBooking(eventData));
+            seed.Events.Add(eventData);
             await seed.SaveChangesAsync();
         }
 
@@ -322,10 +322,9 @@ public sealed class EventRepositoryTests(PostgreSqlFixture database) : Repositor
         // Assert
         await using var verification = Database.CreateContext();
         Assert.Empty(await verification.Events.ToListAsync());
-        Assert.Empty(await verification.Bookings.ToListAsync());
     }
 
-    private async Task<Domain.Models.Event[]> SeedFilterEventsAsync()
+    private async Task<global::Events.Domain.Models.Event[]> SeedFilterEventsAsync()
     {
         var events = new[]
         {
