@@ -2,11 +2,13 @@
 
 Решение состоит из трёх независимо запускаемых ASP.NET Core API (.NET 10). У каждого сервиса четыре проекта: Domain содержит модели и правила, Application — сценарии и интерфейсы, Infrastructure — PostgreSQL, EF Core и адаптеры, Presentation — HTTP API и настройку приложения.
 
-| Сервис | Адрес локально | Данные и ответственность |
-| --- | --- | --- |
-| Users | http://localhost:5101 | База `users`, порт 5433. Регистрация, хеши паролей, вход и выпуск JWT. |
-| Events | http://localhost:5102 | База `events`, порт 5434. CRUD событий, доступные места и результаты запросов на резервирование. |
-| Bookings | http://localhost:5103 | База `bookings`, порт 5435. Брони, статусы, отмена и доставка сообщений. |
+| API | HTTP с хоста → в контейнере | PostgreSQL: база, адрес внутри Compose | Порт БД с хоста |
+| --- | --- | --- | --- |
+| Users — регистрация и выдача JWT | `localhost:5101` → `8080` | `users`, `users-db:5432` | `5433` |
+| Events — события и количество мест | `localhost:5102` → `8080` | `events`, `events-db:5432` | `5434` |
+| Bookings — создание, подтверждение и отмена броней | `localhost:5103` → `8080` | `bookings`, `bookings-db:5432` | `5435` |
+
+Kafka доступна как `localhost:9092` с хоста и `kafka:29092` из контейнеров. Сервисы не вызывают HTTP API друг друга: клиент обращается к каждому API сам, JWT проверяется локально, а Bookings и Events обмениваются сообщениями через брокер.
 
 Каждая база имеет свой контекст и свою начальную миграцию в `Services/<сервис>/Infrastructure/DataAccess/Migrations`. Начальная миграция создаёт **новую** базу: данные из базы монолита не переносятся. Межсервисных внешних ключей и навигационных свойств нет. Users не зависит от других сервисов. Events и Bookings ссылаются на [Contracts](Contracts/BookingMessages.cs), но не на проекты друг друга.
 
@@ -60,6 +62,8 @@ foreach ($service in "Users", "Events", "Bookings") {
 3. Фоновый обработчик Bookings публикует запрос в топик Kafka `reserve-seats`. Events одной транзакцией сохраняет результат запроса и удерживает запрошенные места от других броней, не уменьшая `AvailableSeats`, затем публикует ответ в `seats-decided`. Несуществующее или начавшееся событие и нехватка мест приводят к статусу `Rejected`. Пока Events недоступен, бронь остаётся в ожидании.
 4. После положительного ответа Bookings сохраняет статус `Confirmed` и публикует `BookingConfirmed` в топик `booking-confirmed`. Сообщение содержит только идентификаторы брони, события и пользователя, число мест и время подтверждения в UTC. Events уменьшает `AvailableSeats` на число мест в подтверждении и сохраняет результат в той же транзакции. Повторная доставка не списывает места второй раз. Подтверждение без предварительного резерва также обрабатывается, если есть свободные места. Если событие отсутствует или мест недостаточно, Events пропускает сообщение с предупреждением.
 5. `DELETE /bookings/{id}` у Bookings доступен владельцу и администратору. После отмены сообщение `booking-cancelled` возвращает место. Проверить результат можно через `GET /bookings/{id}` у Bookings и `GET /events/{eventId}` у Events.
+
+Маршрут подтверждения: [обработчик решения в Bookings](Services/Bookings/Infrastructure/Messaging/ReservationDecisionHandler.cs) → [издатель Kafka](Services/Bookings/Infrastructure/Messaging/KafkaBookingPublisher.cs) → `booking-confirmed` → [подписчик Events](Services/Events/Infrastructure/Messaging/BookingMessagesConsumer.cs) → [списание мест в базе Events](Services/Events/Application/Messaging/ReservationSubscriber.cs). Предварительное удержание не меняет `AvailableSeats`; списание за бронь выполняется при обработке подтверждения.
 
 Издатель сериализует общий контракт в JSON и передаёт в Kafka ключ `EventId`. Все подтверждения одного события попадают в один раздел топика `booking-confirmed`. Между разными топиками общего порядка нет. Bookings не обращается к Events напрямую и не изменяет остаток мест.
 
