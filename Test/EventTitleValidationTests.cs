@@ -1,9 +1,9 @@
 using System.ComponentModel.DataAnnotations;
-using Application.Services.Events;
-using Domain.Consts;
-using Application.DTOs.Events.Incoming;
-using Domain.Models;
-using Application.Repositories.Events;
+using Events.Application.Services.Events;
+using Events.Domain.Consts;
+using Events.Application.DTOs.Events.Incoming;
+using Events.Domain.Models;
+using Events.Application.Repositories.Events;
 using Moq;
 
 namespace Test;

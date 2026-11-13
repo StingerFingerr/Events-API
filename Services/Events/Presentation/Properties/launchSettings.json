@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Events": {
+      "commandName": "Project",
+      "applicationUrl": "http://localhost:5102"
+    }
+  }
+}

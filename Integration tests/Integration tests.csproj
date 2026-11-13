@@ -15,6 +15,7 @@
         <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.12" />
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
         <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+        <PackageReference Include="Testcontainers.Kafka" Version="4.15.0" />
         <PackageReference Include="Testcontainers.PostgreSql" Version="4.15.0" />
         <PackageReference Include="xunit" Version="2.9.3" />
         <PackageReference Include="xunit.runner.visualstudio" Version="4.0.0">
@@ -28,8 +29,9 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Events API.csproj" />
-      <ProjectReference Include="..\Infrastructure\Infrastructure.csproj" />
+      <ProjectReference Include="../Services/Users/Presentation/Users.Presentation.csproj" />
+      <ProjectReference Include="../Services/Events/Presentation/Events.Presentation.csproj" />
+      <ProjectReference Include="../Services/Bookings/Presentation/Bookings.Presentation.csproj" />
     </ItemGroup>
 
 </Project>
