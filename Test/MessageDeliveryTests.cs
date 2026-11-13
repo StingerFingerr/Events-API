@@ -40,4 +40,34 @@ public class MessageDeliveryTests
         Assert.False((await handler.Reserve(request, default)).Accepted);
         Assert.Equal(3, item.AvailableSeats);
     }
+
+    [Fact]
+    public async Task CancellationBetweenHoldAndConfirmation_FreesCapacityAndIgnoresLateConfirmation()
+    {
+        using var db = new EventsDbContext(new DbContextOptionsBuilder<EventsDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
+        var start = DateTime.UtcNow.AddDays(1);
+        var item = Event.Create(Guid.NewGuid(), "Concert", start, start.AddHours(1), 1);
+        db.Events.Add(item);
+        await db.SaveChangesAsync();
+        var handler = new ReservationSubscriber(new Events.Infrastructure.Repositories.Events.ReservationRepository(db),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<ReservationSubscriber>.Instance);
+        var first = new ReserveSeats(Guid.NewGuid(), item.Id, 1);
+        var next = first with { BookingId = Guid.NewGuid() };
+        BookingConfirmed Confirm(ReserveSeats request) =>
+            new(request.BookingId, request.EventId, Guid.NewGuid(), request.SeatCount, DateTimeOffset.UtcNow);
+
+        Assert.True((await handler.Reserve(first, default)).Accepted);
+        await handler.Cancel(new BookingCancelled(first.BookingId), default);
+        Assert.True((await handler.Reserve(next, default)).Accepted);
+        await handler.Confirm(Confirm(first), default);
+        db.ChangeTracker.Clear();
+        var saved = await db.Events.SingleAsync();
+        Assert.Equal(1, saved.HeldSeats);
+        Assert.Equal(1, saved.AvailableSeats);
+
+        await handler.Confirm(Confirm(next), default);
+        Assert.Equal(0, saved.HeldSeats);
+        Assert.Equal(0, saved.AvailableSeats);
+    }
 }

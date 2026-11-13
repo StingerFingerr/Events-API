@@ -48,20 +48,26 @@ public class BookingJourneyTests(Events.PostgreSqlFixture database)
         using var bookings = Host<BookingsController>("journey_bookings", broker);
         using var auth = users.CreateClient();
         using var bookingClient = bookings.CreateClient();
-        var credentials = new { login = Guid.NewGuid().ToString(), password = "example" };
-        (await auth.PostAsJsonAsync("/auth/register", credentials)).EnsureSuccessStatusCode();
+        var admin = new { login = Guid.NewGuid().ToString(), password = "example" };
+        (await auth.PostAsJsonAsync("/auth/register", admin)).EnsureSuccessStatusCode();
+        var owner = new { login = Guid.NewGuid().ToString(), password = "example" };
+        (await auth.PostAsJsonAsync("/auth/register", owner)).EnsureSuccessStatusCode();
         Guid ownerId;
         await using (var scope = users.Services.CreateAsyncScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<UsersDbContext>();
-            var account = db.Users.Where(u => u.Login == credentials.login);
-            ownerId = await account.Select(u => u.Id).SingleAsync();
-            await account.ExecuteUpdateAsync(update => update.SetProperty(u => u.Role, UserRole.Admin));
+            ownerId = await db.Users.Where(u => u.Login == owner.login).Select(u => u.Id).SingleAsync();
+            await db.Users.Where(u => u.Login == admin.login)
+                .ExecuteUpdateAsync(update => update.SetProperty(u => u.Role, UserRole.Admin));
         }
-        using var login = await auth.PostAsJsonAsync("/auth/login", credentials);
-        var jwt = (await login.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("token").GetString();
-        bookingClient.DefaultRequestHeaders.Authorization = eventClient.DefaultRequestHeaders.Authorization =
-            new AuthenticationHeaderValue("Bearer", jwt);
+        using var login = await auth.PostAsJsonAsync("/auth/login", admin);
+        login.EnsureSuccessStatusCode();
+        eventClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer",
+            (await login.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("token").GetString());
+        using var ownerLogin = await auth.PostAsJsonAsync("/auth/login", owner);
+        ownerLogin.EnsureSuccessStatusCode();
+        bookingClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer",
+            (await ownerLogin.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("token").GetString());
         var start = DateTime.UtcNow.AddDays(1);
         using var created = await eventClient.PostAsJsonAsync("/events", new
         {
@@ -85,6 +91,7 @@ public class BookingJourneyTests(Events.PostgreSqlFixture database)
         async Task<int> Available() => (await eventClient.GetFromJsonAsync<JsonElement>($"/events/{eventId}"))
             .GetProperty("availableSeats").GetInt32();
 
+        Assert.Equal(1, await Available());
         var first = await Book();
         await WaitForStatus(first, BookingStatus.Confirmed);
         using var observer = new ConsumerBuilder<string, string>(new ConsumerConfig
@@ -111,6 +118,7 @@ public class BookingJourneyTests(Events.PostgreSqlFixture database)
         Assert.Equal(HttpStatusCode.Unauthorized, (await otherClient.GetAsync(first)).StatusCode);
         otherClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer",
             (await visitorLogin.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("token").GetString());
+        Assert.Equal(HttpStatusCode.Forbidden, (await otherClient.GetAsync(first)).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await otherClient.DeleteAsync(first)).StatusCode);
         using var visitorEvents = events.CreateClient();
         var dto = new { title = "Other event", totalSeats = 2, startAt = start, endAt = start.AddHours(2) };
