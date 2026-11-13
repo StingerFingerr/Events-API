@@ -10,12 +10,29 @@
 
 Каждая база имеет свой контекст и свою начальную миграцию в `Services/<сервис>/Infrastructure/DataAccess/Migrations`. Начальная миграция создаёт **новую** базу: данные из базы монолита не переносятся. Межсервисных внешних ключей и навигационных свойств нет. Users не зависит от других сервисов. Events и Bookings ссылаются на [Contracts](Contracts/BookingMessages.cs), но не на проекты друг друга.
 
-## Локальный запуск
+## Запуск в Docker
 
-Нужны .NET 10 SDK и Docker. Из корня репозитория:
+Достаточно Docker с Compose. В корне проекта один раз создайте файл `.env` с общим ключом JWT (PowerShell):
 
 ```powershell
-docker compose up -d --wait
+if (!(Test-Path .env)) { "JWT_SECRET=$([guid]::NewGuid().ToString('N'))$([guid]::NewGuid().ToString('N'))" | Set-Content -Encoding ascii .env }
+```
+
+Если файл уже есть, убедитесь, что в нём задан `JWT_SECRET` длиной не менее 32 байт. Файл не входит в Git или образы. Затем:
+
+```powershell
+docker compose up -d --build --wait
+docker compose ps
+```
+
+Compose поднимает семь контейнеров: три API, три PostgreSQL и Kafka в режиме KRaft. Каждый API дожидается своей базы, а Events и Bookings также дожидаются Kafka. При первом запуске дождитесь применения миграций; откройте Swagger на портах 5101–5103. Для диагностики: `docker compose logs -f users-api events-api bookings-api`. Для остановки: `docker compose down`. Именованные тома сохраняют данные между запусками.
+
+## Запуск API без контейнеров
+
+Нужны .NET 10 SDK, Docker и файл `.env` из инструкции выше. Из корня репозитория:
+
+```powershell
+docker compose up -d --wait users-db events-db bookings-db kafka
 dotnet build "Events API.sln"
 ```
 
