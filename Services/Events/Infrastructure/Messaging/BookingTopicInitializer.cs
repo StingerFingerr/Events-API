@@ -36,7 +36,9 @@ public sealed class BookingTopicInitializer(string bootstrapServers, ILogger<Boo
             using var admin = new AdminClientBuilder(new AdminClientConfig { BootstrapServers = bootstrapServers }).Build();
             await admin.CreateTopicsAsync(names.Select(name => new TopicSpecification
             {
-                Name = name, NumPartitions = -1, ReplicationFactor = -1 // Use the broker defaults.
+                Name = name,
+                NumPartitions = -1,
+                ReplicationFactor = -1 // Use the broker defaults.
             }), new CreateTopicsOptions { RequestTimeout = TimeSpan.FromSeconds(5) }).WaitAsync(ct);
             return true;
         }

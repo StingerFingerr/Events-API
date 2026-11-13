@@ -13,9 +13,15 @@ public sealed class BookingMessagesConsumer(string bootstrapServers, string cons
 {
     protected override async Task ExecuteAsync(CancellationToken stop)
     {
-        var config = new ConsumerConfig { BootstrapServers = bootstrapServers,
-            GroupId = consumerGroup, AutoOffsetReset = AutoOffsetReset.Earliest,
-            AllowAutoCreateTopics = false, TopicMetadataRefreshIntervalMs = 3000, EnableAutoCommit = false };
+        var config = new ConsumerConfig
+        {
+            BootstrapServers = bootstrapServers,
+            GroupId = consumerGroup,
+            AutoOffsetReset = AutoOffsetReset.Earliest,
+            AllowAutoCreateTopics = false,
+            TopicMetadataRefreshIntervalMs = 3000,
+            EnableAutoCommit = false
+        };
         while (!stop.IsCancellationRequested)
         {
             using var consumer = new ConsumerBuilder<string, string>(config).Build();

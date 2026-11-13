@@ -20,8 +20,15 @@ public sealed class Booking
     {
         if (eventId == Guid.Empty || userId == Guid.Empty)
             throw new ArgumentException("Event and user identifiers are required.");
-        return new() { Id = Guid.NewGuid(), EventId = eventId, UserId = userId,
-            SeatCount = 1, CreatedAt = DateTime.UtcNow, DeliveryPending = true };
+        return new()
+        {
+            Id = Guid.NewGuid(),
+            EventId = eventId,
+            UserId = userId,
+            SeatCount = 1,
+            CreatedAt = DateTime.UtcNow,
+            DeliveryPending = true
+        };
     }
 
     public void ApplyDecision(bool accepted)

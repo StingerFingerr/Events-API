@@ -12,9 +12,15 @@ public sealed class SeatsDecidedConsumer(string bootstrapServers, string consume
 {
     protected override async Task ExecuteAsync(CancellationToken stop)
     {
-        var config = new ConsumerConfig { BootstrapServers = bootstrapServers,
-            GroupId = consumerGroup, AutoOffsetReset = AutoOffsetReset.Earliest,
-            AllowAutoCreateTopics = true, TopicMetadataRefreshIntervalMs = 3000, EnableAutoCommit = false };
+        var config = new ConsumerConfig
+        {
+            BootstrapServers = bootstrapServers,
+            GroupId = consumerGroup,
+            AutoOffsetReset = AutoOffsetReset.Earliest,
+            AllowAutoCreateTopics = true,
+            TopicMetadataRefreshIntervalMs = 3000,
+            EnableAutoCommit = false
+        };
         while (!stop.IsCancellationRequested)
         {
             using var consumer = new ConsumerBuilder<string, string>(config).Build();

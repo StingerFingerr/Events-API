@@ -15,8 +15,13 @@ public sealed class ReservationSubscriber(IReservationRepository repository, ILo
 
         var item = await repository.GetEvent(message.EventId, ct);
         var accepted = item != null && item.StartAt > DateTime.UtcNow && item.TryHoldSeats(message.SeatCount);
-        repository.Add(new() { Id = message.BookingId, EventId = message.EventId,
-            SeatCount = message.SeatCount, State = accepted ? ReservationState.Held : ReservationState.Rejected });
+        repository.Add(new()
+        {
+            Id = message.BookingId,
+            EventId = message.EventId,
+            SeatCount = message.SeatCount,
+            State = accepted ? ReservationState.Held : ReservationState.Rejected
+        });
         await repository.Save(ct);
         return new(accepted);
     }

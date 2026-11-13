@@ -52,7 +52,7 @@ public class JwtStartupTests
     {
         var builder = Host.CreateApplicationBuilder();
         builder.Services.AddInfrastructure("Host=localhost;Database=jwt_validation;Username=test;Password=test");
-        
+
         builder.Services.Configure<JwtOptions>(options =>
         {
             if (secret is not null)

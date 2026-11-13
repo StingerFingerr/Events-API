@@ -63,8 +63,13 @@ public class BookingJourneyTests(Events.PostgreSqlFixture database)
         bookingClient.DefaultRequestHeaders.Authorization = eventClient.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", jwt);
         var start = DateTime.UtcNow.AddDays(1);
-        using var created = await eventClient.PostAsJsonAsync("/events", new { title = "One seat concert",
-            totalSeats = 1, startAt = start, endAt = start.AddHours(1) });
+        using var created = await eventClient.PostAsJsonAsync("/events", new
+        {
+            title = "One seat concert",
+            totalSeats = 1,
+            startAt = start,
+            endAt = start.AddHours(1)
+        });
         created.EnsureSuccessStatusCode();
         var eventId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
 
@@ -82,8 +87,11 @@ public class BookingJourneyTests(Events.PostgreSqlFixture database)
 
         var first = await Book();
         await WaitForStatus(first, BookingStatus.Confirmed);
-        using var observer = new ConsumerBuilder<string, string>(new ConsumerConfig {
-            BootstrapServers = broker, GroupId = "journey-observer", AutoOffsetReset = AutoOffsetReset.Earliest
+        using var observer = new ConsumerBuilder<string, string>(new ConsumerConfig
+        {
+            BootstrapServers = broker,
+            GroupId = "journey-observer",
+            AutoOffsetReset = AutoOffsetReset.Earliest
         }).Build();
         observer.Subscribe(BookingTopics.BookingConfirmed);
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
@@ -155,7 +163,7 @@ public class BookingJourneyTests(Events.PostgreSqlFixture database)
         using var producer = new ProducerBuilder<string, string>(new ProducerConfig { BootstrapServers = broker }).Build();
         // Use one partition so the final valid confirmation proves earlier bad records didn't block progress.
         Task Send(string value) => producer.ProduceAsync(BookingTopics.BookingConfirmed, new Message<string, string>
-            { Key = item.Id.ToString(), Value = value });
+        { Key = item.Id.ToString(), Value = value });
         BookingConfirmed Confirmation(int seats) => new(Guid.NewGuid(), item.Id, Guid.NewGuid(), seats, DateTimeOffset.UtcNow);
         var missing = Confirmation(1) with { EventId = Guid.NewGuid() };
         var tooLarge = Confirmation(5);

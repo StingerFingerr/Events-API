@@ -22,7 +22,8 @@ public sealed class KafkaBookingPublisher(string bootstrapServers) : IBookingPub
     private Task Send<T>(string topic, Guid eventId, T value, CancellationToken ct) =>
         producer.ProduceAsync(topic, new Message<string, string>
         {
-            Key = eventId.ToString("D"), Value = JsonSerializer.Serialize(value)
+            Key = eventId.ToString("D"),
+            Value = JsonSerializer.Serialize(value)
         }, ct);
 
     public void Dispose()
