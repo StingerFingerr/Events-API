@@ -227,13 +227,16 @@ public class BookingJourneyTests(Events.PostgreSqlFixture database)
         var partition = new TopicPartition(BookingTopics.SeatsDecided, new Partition(0));
         using var observer = new ConsumerBuilder<string, string>(new ConsumerConfig
         {
-            BootstrapServers = broker, GroupId = group, EnableAutoCommit = false
+            BootstrapServers = broker,
+            GroupId = group,
+            EnableAutoCommit = false
         }).Build();
         async Task SendAndWaitForCommit(string? value)
         {
             var sent = await producer.ProduceAsync(partition, new Message<string, string>
             {
-                Key = booking.Id.ToString(), Value = value!
+                Key = booking.Id.ToString(),
+                Value = value!
             });
             await WaitUntil(() => Task.FromResult(observer.Committed([partition], TimeSpan.FromSeconds(5))
                 .Single().Offset.Value == sent.Offset.Value + 1));

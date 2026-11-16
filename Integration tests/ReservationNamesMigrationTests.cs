@@ -18,8 +18,10 @@ public class ReservationNamesMigrationTests(PostgreSqlFixture database) : Reposi
         await db.SaveChangesAsync();
         var rows = Enum.GetValues<ReservationState>().Select(state => new SeatReservation
         {
-            Id = Guid.NewGuid(), EventId = state == ReservationState.Cancelled ? null : item.Id,
-            SeatCount = state == ReservationState.Cancelled ? 0 : 2, State = state
+            Id = Guid.NewGuid(),
+            EventId = state == ReservationState.Cancelled ? null : item.Id,
+            SeatCount = state == ReservationState.Cancelled ? 0 : 2,
+            State = state
         }).ToArray();
         foreach (var row in rows)
             await db.Database.ExecuteSqlInterpolatedAsync($"""
