@@ -94,7 +94,8 @@ public class EventDatesApiTests(PostgreSqlFixture database) : RepositoryTestBase
 
     private static object Payload(string startOffset, string endOffset) => new
     {
-        title = "Offset concert", totalSeats = 10,
+        title = "Offset concert",
+        totalSeats = 10,
         startAt = $"2030-01-01T12:00:00{startOffset}",
         endAt = $"2030-01-01T13:00:00{endOffset}"
     };
