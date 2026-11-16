@@ -13,11 +13,37 @@ namespace Test;
 public class AuthComponentTests
 {
     [Fact]
-    public void Verify_ChecksSha256HexDigest()
+    public void Hash_UsesUniqueSaltsAndVerifiesPassword()
     {
         var hasher = new PasswordHasher();
-        var hash = hasher.Hash("abc");
-        Assert.Equal("BA7816BF8F01CFEA414140DE5DAE2223B00361A396177A9CB410FF61F20015AD", hash);
+        var first = hasher.Hash("пароль 🔒");
+        var second = hasher.Hash("пароль 🔒");
+        Assert.NotEqual(first, second);
+        Assert.StartsWith("PBKDF2-SHA256$600000$", first);
+        Assert.False(hasher.NeedsRehash(first));
+        Assert.True(hasher.Verify("пароль 🔒", first));
+        Assert.True(hasher.Verify("пароль 🔒", second));
+        Assert.False(hasher.Verify("wrong", first));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("not-a-hash")]
+    [InlineData("PBKDF2-SHA256$600000$invalid$invalid")]
+    [InlineData("PBKDF2-SHA256$999999999$AAAAAAAAAAAAAAAAAAAAAA==$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")]
+    [InlineData("PBKDF2-SHA256$600000$!!!!!!!!!!!!!!!!!!!!!!!!$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")]
+    public void Verify_MalformedHashReturnsFalse(string? hash)
+    {
+        Assert.False(new PasswordHasher().Verify("pass", hash!));
+    }
+
+    [Fact]
+    public void Verify_AcceptsLegacySha256ForUpgrade()
+    {
+        var hasher = new PasswordHasher();
+        const string hash = "BA7816BF8F01CFEA414140DE5DAE2223B00361A396177A9CB410FF61F20015AD";
+        Assert.True(hasher.NeedsRehash(hash));
         Assert.True(hasher.Verify("abc", hash));
         Assert.False(hasher.Verify("ABC", hash));
         Assert.False(hasher.Verify("abc", new string('X', 64)));
@@ -39,7 +65,8 @@ public class AuthComponentTests
         var saved = await db.Users.FindAsync(id);
         Assert.NotNull(saved);
         Assert.Equal(UserRole.User, saved.Role);
-        Assert.Equal(passwords.Hash("pass"), saved.PasswordHash);
+        Assert.True(passwords.Verify("pass", saved.PasswordHash));
+        Assert.False(passwords.NeedsRehash(saved.PasswordHash));
         Assert.Equal("signed-token", await service.LoginAsync("alice", "pass"));
         await Assert.ThrowsAsync<Users.Domain.Exceptions.InvalidCredentialsException>(() => service.LoginAsync("alice", "wrong"));
         await Assert.ThrowsAsync<Users.Domain.Exceptions.InvalidCredentialsException>(() => service.LoginAsync("unknown", "pass"));

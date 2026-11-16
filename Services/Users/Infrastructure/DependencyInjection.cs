@@ -24,7 +24,6 @@ public static class DependencyInjection
                 "Jwt:Issuer and Jwt:Audience are required.")
             .Validate(o => o.LifetimeMinutes > 0, "Jwt:LifetimeMinutes must be positive.")
             .ValidateOnStart();
-        services.AddScoped<Users.Application.Services.Auth.IUserService, Users.Application.Services.Auth.UserService>();
         return services;
     }
 }

@@ -21,7 +21,6 @@ public static class DependencyInjection
             .Validate(o => !string.IsNullOrWhiteSpace(o.Issuer) && !string.IsNullOrWhiteSpace(o.Audience),
                 "Jwt:Issuer and Jwt:Audience are required.")
             .ValidateOnStart();
-        services.AddScoped<Events.Application.Services.Events.IEventService, Events.Application.Services.Events.EventsService>();
         return services;
     }
 }

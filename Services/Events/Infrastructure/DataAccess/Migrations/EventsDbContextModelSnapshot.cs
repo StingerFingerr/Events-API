@@ -70,22 +70,26 @@ namespace Events.Infrastructure.DataAccess.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
 
                     b.Property<Guid?>("EventId")
-                        .HasColumnType("uuid");
+                        .HasColumnType("uuid")
+                        .HasColumnName("event_id");
 
                     b.Property<int>("SeatCount")
-                        .HasColumnType("integer");
+                        .HasColumnType("integer")
+                        .HasColumnName("seat_count");
 
                     b.Property<string>("State")
                         .IsConcurrencyToken()
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("text")
+                        .HasColumnName("state");
 
                     b.HasKey("Id");
 
-                    b.ToTable("Reservations");
+                    b.ToTable("reservations", (string)null);
                 });
 #pragma warning restore 612, 618
         }

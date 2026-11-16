@@ -9,7 +9,8 @@ using Microsoft.Extensions.Logging;
 
 namespace Bookings.Infrastructure.Messaging;
 
-// The booking row is also the durable delivery queue. Only clear the flag after acknowledgement.
+// DeliveryPending queues seat requests and cancellations; confirmations are retried by ReservationDecisionHandler.
+// Only clear the flag after acknowledgement.
 public sealed class BookingDispatcher(IServiceScopeFactory scopes, IBookingPublisher publisher,
     ILogger<BookingDispatcher> logger) : BackgroundService
 {
@@ -45,12 +46,6 @@ public sealed class BookingDispatcher(IServiceScopeFactory scopes, IBookingPubli
         {
             case BookingStatus.Pending:
                 await publisher.RequestSeats(new ReserveSeats(id, booking.EventId, booking.SeatCount), stop);
-                booking.MarkDelivered();
-                break;
-            case BookingStatus.Confirmed:
-                // Drain confirmed deliveries left by the previous version.
-                await publisher.Confirm(new BookingConfirmed(id, booking.EventId,
-                    booking.UserId, booking.SeatCount, new DateTimeOffset(booking.ProcessedAt!.Value)), stop);
                 booking.MarkDelivered();
                 break;
             case BookingStatus.Cancelled:

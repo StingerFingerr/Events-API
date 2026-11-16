@@ -18,6 +18,8 @@ public class UserService(IUserRepository users, IPasswordHasher passwords, IJwtT
         var user = await users.FindByLoginAsync(login);
         if (user is null || !passwords.Verify(password, user.PasswordHash))
             throw new InvalidCredentialsException();
+        if (passwords.NeedsRehash(user.PasswordHash))
+            await users.UpgradePasswordHashAsync(user.Id, user.PasswordHash, passwords.Hash(password));
         return tokens.Generate(user);
     }
 }

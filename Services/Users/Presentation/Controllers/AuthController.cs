@@ -15,6 +15,8 @@ public class AuthController(IUserService users) : ControllerBase
 
     [HttpPost("register")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Register(Credentials credentials)
     {
         await users.RegisterAsync(credentials.Login, credentials.Password);
@@ -22,6 +24,8 @@ public class AuthController(IUserService users) : ControllerBase
     }
 
     [HttpPost("login")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Login(Credentials credentials)
     {
         var token = await users.LoginAsync(credentials.Login, credentials.Password);

@@ -9,6 +9,10 @@ namespace Users.Infrastructure.Repositories.Users;
 
 public class UserRepository(UsersDbContext context) : IUserRepository
 {
+    public async Task UpgradePasswordHashAsync(Guid userId, string previousHash, string newHash) =>
+        await context.Users.Where(user => user.Id == userId && user.PasswordHash == previousHash)
+            .ExecuteUpdateAsync(update => update.SetProperty(user => user.PasswordHash, newHash));
+
     public Task<User?> FindByLoginAsync(string login) =>
         context.Users.AsNoTracking().SingleOrDefaultAsync(user => user.Login == login);
 

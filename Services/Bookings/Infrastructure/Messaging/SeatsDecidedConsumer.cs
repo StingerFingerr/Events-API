@@ -38,10 +38,20 @@ public sealed class SeatsDecidedConsumer(string bootstrapServers, string consume
                         await Task.Delay(TimeSpan.FromSeconds(1), stop);
                         continue;
                     }
-                    await using var scope = scopes.CreateAsyncScope();
-                    var decision = JsonSerializer.Deserialize<SeatsDecided>(record.Message.Value)
-                        ?? throw new JsonException("Missing decision");
-                    await scope.ServiceProvider.GetRequiredService<ReservationDecisionHandler>().Handle(decision, stop);
+                    try
+                    {
+                        if (record.Message.Value is null)
+                            throw new JsonException("Missing decision");
+                        var decision = JsonSerializer.Deserialize<SeatsDecided>(record.Message.Value)
+                            ?? throw new JsonException("Missing decision");
+                        await using var scope = scopes.CreateAsyncScope();
+                        await scope.ServiceProvider.GetRequiredService<ReservationDecisionHandler>().Handle(decision, stop);
+                    }
+                    catch (JsonException ex)
+                    {
+                        logger.LogWarning(ex, "Skipping invalid seats decision at {Position}", record.TopicPartitionOffset);
+                    }
+                    // Skip malformed payloads, but retry database or broker failures via the outer catch.
                     consumer.Commit(record);
                 }
             }

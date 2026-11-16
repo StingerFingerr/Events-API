@@ -199,6 +199,65 @@ public class BookingJourneyTests(Events.PostgreSqlFixture database)
         Assert.Equal(ReservationState.Rejected, (await receipts.FindAsync(tooLarge.BookingId))!.State);
     }
 
+    [Fact]
+    public async Task SeatsDecisions_SkipMalformedAndNullMessagesThenProcessAndCommit()
+    {
+        await using var kafka = new KafkaBuilder("apache/kafka:3.9.1").WithKRaft().Build();
+        await kafka.StartAsync();
+        var broker = kafka.GetBootstrapAddress();
+        using var admin = new AdminClientBuilder(new AdminClientConfig { BootstrapServers = broker }).Build();
+        await admin.CreateTopicsAsync([new Confluent.Kafka.Admin.TopicSpecification
+        {
+            Name = BookingTopics.SeatsDecided, NumPartitions = 1, ReplicationFactor = 1
+        }]);
+        const string group = "invalid-decisions-test";
+        using var host = Host<BookingsController>("invalid_decisions_bookings", broker)
+            .WithWebHostBuilder(builder => builder.UseSetting("Kafka:ConsumerGroup", group));
+        using var client = host.CreateClient();
+        var booking = Booking.Create(Guid.NewGuid(), Guid.NewGuid());
+        booking.MarkDelivered();
+        await using (var scope = host.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<global::Bookings.Infrastructure.DataAccess.BookingsDbContext>();
+            db.Bookings.Add(booking);
+            await db.SaveChangesAsync();
+        }
+
+        using var producer = new ProducerBuilder<string, string>(new ProducerConfig { BootstrapServers = broker }).Build();
+        var partition = new TopicPartition(BookingTopics.SeatsDecided, new Partition(0));
+        using var observer = new ConsumerBuilder<string, string>(new ConsumerConfig
+        {
+            BootstrapServers = broker, GroupId = group, EnableAutoCommit = false
+        }).Build();
+        async Task SendAndWaitForCommit(string? value)
+        {
+            var sent = await producer.ProduceAsync(partition, new Message<string, string>
+            {
+                Key = booking.Id.ToString(), Value = value!
+            });
+            await WaitUntil(() => Task.FromResult(observer.Committed([partition], TimeSpan.FromSeconds(5))
+                .Single().Offset.Value == sent.Offset.Value + 1));
+        }
+
+        // Verify each bad record is committed even before a subsequent valid record exists.
+        foreach (var value in new string?[] { "not JSON", "null", null, "{\"BookingId\":\"invalid-guid\",\"Accepted\":true}" })
+            await SendAndWaitForCommit(value);
+
+        await using (var scope = host.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<global::Bookings.Infrastructure.DataAccess.BookingsDbContext>();
+            Assert.Equal(BookingStatus.Pending, (await db.Bookings.FindAsync(booking.Id))!.Status);
+        }
+        await SendAndWaitForCommit(JsonSerializer.Serialize(new SeatsDecided(booking.Id, true)));
+        await using (var scope = host.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<global::Bookings.Infrastructure.DataAccess.BookingsDbContext>();
+            var saved = (await db.Bookings.FindAsync(booking.Id))!;
+            Assert.Equal(BookingStatus.Confirmed, saved.Status);
+            Assert.Null(saved.UndeliveredConfirmationAt);
+        }
+    }
+
     private static async Task WaitUntil(Func<Task<bool>> condition)
     {
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));

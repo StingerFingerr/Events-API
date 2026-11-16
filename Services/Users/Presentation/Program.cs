@@ -1,4 +1,5 @@
 using System.Text;
+using Users.Application;
 using Users.Infrastructure.Auth;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -54,6 +55,7 @@ builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationSc
     };
 });
 builder.Services.AddAuthorization();
+builder.Services.AddApplication();
 builder.Services.AddInfrastructure(
     builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("DefaultConnection is not configured."));

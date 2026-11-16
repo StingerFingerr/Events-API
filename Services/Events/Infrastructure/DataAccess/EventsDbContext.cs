@@ -11,7 +11,6 @@ public sealed class EventsDbContext(DbContextOptions<EventsDbContext> options) :
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<SeatReservation>().Property(r => r.State).HasConversion<string>().IsConcurrencyToken();
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(EventsDbContext).Assembly);
     }
 }

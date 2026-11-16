@@ -1,4 +1,5 @@
 using Bookings.Infrastructure.Messaging;
+using Bookings.Application;
 using Bookings.Application.Messaging;
 using System.Text;
 using Bookings.Infrastructure.Auth;
@@ -68,6 +69,7 @@ builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationSc
     };
 });
 builder.Services.AddAuthorization();
+builder.Services.AddApplication();
 builder.Services.AddInfrastructure(
     builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("DefaultConnection is not configured."));

@@ -99,6 +99,46 @@ public class AuthenticationApiTests(PostgreSqlFixture database) : RepositoryTest
         Assert.False(problem.TryGetProperty("message", out _));
     }
 
+    [Fact]
+    public async Task Login_LegacyPassword_UpgradesOnlyAfterSuccessfulAuthentication()
+    {
+        const string legacy = "BA7816BF8F01CFEA414140DE5DAE2223B00361A396177A9CB410FF61F20015AD";
+        var user = User.Create(Guid.NewGuid(), "legacy-user", legacy, UserRole.Admin);
+        await using (var db = Database.CreateContext())
+        {
+            db.Users.Add(user);
+            await db.SaveChangesAsync();
+        }
+        using var factory = CreateFactory();
+        using var client = factory.CreateClient();
+        using var failed = await LoginAsync(client, user.Login, "wrong");
+        Assert.Equal(HttpStatusCode.BadRequest, failed.StatusCode);
+        await using (var db = Database.CreateContext())
+            Assert.Equal(legacy, (await db.Users.SingleAsync()).PasswordHash);
+
+        using var success = await LoginAsync(client, user.Login, "abc");
+        Assert.Equal(HttpStatusCode.OK, success.StatusCode);
+        string upgraded;
+        await using (var db = Database.CreateContext())
+        {
+            var saved = await db.Users.SingleAsync();
+            upgraded = saved.PasswordHash;
+            Assert.StartsWith("PBKDF2-SHA256$600000$", upgraded);
+            Assert.True(new global::Users.Infrastructure.Auth.PasswordHasher().Verify("abc", upgraded));
+            Assert.Equal(user.Id, saved.Id);
+            Assert.Equal(UserRole.Admin, saved.Role);
+            // An overlapping login with the old hash must not replace a newer value.
+            await new global::Users.Infrastructure.Repositories.Users.UserRepository(db)
+                .UpgradePasswordHashAsync(user.Id, legacy, "must-not-be-written");
+        }
+        using var repeat = await LoginAsync(client, user.Login, "abc");
+        Assert.Equal(HttpStatusCode.OK, repeat.StatusCode);
+        using var wrong = await LoginAsync(client, user.Login, "wrong");
+        Assert.Equal(HttpStatusCode.BadRequest, wrong.StatusCode);
+        await using var verification = Database.CreateContext();
+        Assert.Equal(upgraded, (await verification.Users.SingleAsync()).PasswordHash);
+    }
+
     private WebApplicationFactory<AuthController> CreateFactory() =>
         new WebApplicationFactory<AuthController>().WithWebHostBuilder(builder =>
         {

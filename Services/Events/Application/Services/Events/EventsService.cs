@@ -21,6 +21,7 @@ public class EventsService(IEventRepository eventRepository) : IEventService
 
     public async Task<EventDto> CreateEvent(CreateEventDto eventData)
     {
+        eventData = NormalizeDates(eventData);
         if (ValidateEventDto(eventData, out var errorMessage))
             throw new ValidationException(errorMessage);
 
@@ -36,6 +37,7 @@ public class EventsService(IEventRepository eventRepository) : IEventService
 
     public async Task<EventDto> UpdateEvent(Guid id, CreateEventDto eventData)
     {
+        eventData = NormalizeDates(eventData);
         if (ValidateEventDto(eventData, out var errorMessage))
             throw new ValidationException(errorMessage);
 
@@ -93,6 +95,20 @@ public class EventsService(IEventRepository eventRepository) : IEventService
         var totalPages = (int)Math.Ceiling((double)totalItems / filters.PageSize);
 
         return new PaginatedResult<EventDto>(items, filters.Page, filters.PageSize, totalItems, totalPages);
+    }
+
+    private static CreateEventDto NormalizeDates(CreateEventDto eventData) => eventData with
+    {
+        StartAt = ToUtc(eventData.StartAt, nameof(eventData.StartAt)),
+        EndAt = ToUtc(eventData.EndAt, nameof(eventData.EndAt))
+    };
+
+    private static DateTime ToUtc(DateTime value, string field)
+    {
+        if (value.Kind == DateTimeKind.Unspecified)
+            throw new ValidationException($"{field} must include a time zone: use Z or an explicit offset such as +03:00.");
+
+        return value.ToUniversalTime();
     }
 
     private static bool ValidateEventDto(CreateEventDto eventData, out string errorMessage)

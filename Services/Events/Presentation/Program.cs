@@ -1,4 +1,5 @@
 using Events.Infrastructure.Messaging;
+using Events.Application;
 using System.Text;
 using Events.Infrastructure.Auth;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -25,7 +26,6 @@ if (string.IsNullOrWhiteSpace(broker))
 var group = builder.Configuration["Kafka:ConsumerGroup"];
 if (string.IsNullOrWhiteSpace(group))
     throw new InvalidOperationException("Kafka:ConsumerGroup is required.");
-builder.Services.AddScoped<Events.Application.Messaging.ReservationSubscriber>();
 builder.Services.AddSingleton(_ => new KafkaDecisionPublisher(broker));
 builder.Services.AddHostedService(sp => new BookingTopicInitializer(broker, sp.GetRequiredService<ILogger<BookingTopicInitializer>>()));
 builder.Services.AddHostedService(sp => new BookingMessagesConsumer(broker, group,
@@ -68,6 +68,7 @@ builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationSc
     };
 });
 builder.Services.AddAuthorization();
+builder.Services.AddApplication();
 builder.Services.AddInfrastructure(
     builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("DefaultConnection is not configured."));
