@@ -1,9 +1,6 @@
-using Infrastructure.Repositories.Bookings;
-using Application.Services.Events;
-using Infrastructure.DataAccess;
-using Application.Repositories.Events;
-using Application.Repositories.Bookings;
-using Application.Services.Bookings;
+using Events.Application.Services.Events;
+using Events.Infrastructure.DataAccess;
+using Events.Application.Repositories.Events;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -17,11 +14,9 @@ internal static class TestDatabase
         var services = new ServiceCollection();
 
         services.AddLogging();
-        services.AddDbContext<AppDbContext>(options => options.UseInMemoryDatabase(dbName));
+        services.AddDbContext<EventsDbContext>(options => options.UseInMemoryDatabase(dbName));
         services.AddScoped<IEventService, EventsService>();
         services.AddScoped<IEventRepository, InMemoryEventRepository>();
-        services.AddScoped<IBookingRepository, BookingRepository>();
-        services.AddScoped<IBookingService, BookingsService>();
 
         return services.BuildServiceProvider(new ServiceProviderOptions
         {

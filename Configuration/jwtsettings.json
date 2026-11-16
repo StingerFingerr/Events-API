@@ -1,0 +1,7 @@
+{
+  "Jwt": {
+    "Issuer": "EventsApi",
+    "Audience": "EventsApi.Client",
+    "Secret": ""
+  }
+}

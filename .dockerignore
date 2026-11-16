@@ -1,0 +1,10 @@
+**
+!Contracts/
+!Contracts/**
+!Services/
+!Services/**
+!Configuration/
+!Configuration/jwtsettings.json
+**/bin/
+**/obj/
+**/Properties/launchSettings.json

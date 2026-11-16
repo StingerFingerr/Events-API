@@ -1,9 +1,9 @@
-using Domain.Exceptions;
-using Domain.Models;
-using Infrastructure.Repositories.Bookings;
+using Bookings.Domain.Exceptions;
+using Bookings.Domain.Models;
+using Bookings.Infrastructure.Repositories.Bookings;
 using Microsoft.EntityFrameworkCore;
 
-namespace Integration_tests;
+namespace Integration_tests.Bookings;
 
 [Collection(PostgreSqlCollection.Name)]
 public class BookingQuotaTransactionTests(PostgreSqlFixture database) : RepositoryTestBase(database)
@@ -11,17 +11,14 @@ public class BookingQuotaTransactionTests(PostgreSqlFixture database) : Reposito
     [Fact]
     public async Task ConcurrentTransactions_OnlyOneCanTakeTheLastQuotaSlot()
     {
-        var user = User.Create(Guid.NewGuid(), "visitor", "hash");
-        var first = CreateEvent("First concert");
-        var second = CreateEvent("Second concert");
+        var userId = Guid.NewGuid();
+        var first = Guid.NewGuid();
+        var second = Guid.NewGuid();
         await using (var setup = Database.CreateContext())
         {
-            setup.Users.Add(user);
-            setup.Events.AddRange(first, second);
             for (var i = 0; i < 9; i++)
             {
-                Assert.True(first.TryReserveSeats());
-                setup.Bookings.Add(Booking.Create(first, user.Id));
+                setup.Bookings.Add(Booking.Create(first, userId));
             }
             await setup.SaveChangesAsync();
         }
@@ -37,13 +34,11 @@ public class BookingQuotaTransactionTests(PostgreSqlFixture database) : Reposito
             {
                 return await repository.RunBookingChangeAsync(async () =>
                 {
-                    var concert = await context.Events.SingleAsync(e => e.Id == eventId);
-                    Assert.Equal(9, await repository.CountActiveAsync(user.Id));
+                    Assert.Equal(9, await repository.CountActiveAsync(userId));
                     if (Interlocked.Increment(ref readers) == 2)
                         bothHaveRead.SetResult();
                     await bothHaveRead.Task.WaitAsync(TimeSpan.FromSeconds(15));
-                    Assert.True(concert.TryReserveSeats());
-                    await repository.AddAsync(Booking.Create(concert, user.Id));
+                    await repository.AddAsync(Booking.Create(eventId, userId));
                     return true;
                 });
             }
@@ -53,10 +48,9 @@ public class BookingQuotaTransactionTests(PostgreSqlFixture database) : Reposito
             }
         }
 
-        var results = await Task.WhenAll(TryBookAsync(first.Id), TryBookAsync(second.Id));
+        var results = await Task.WhenAll(TryBookAsync(first), TryBookAsync(second));
         Assert.Single(results, succeeded => succeeded);
         await using var verification = Database.CreateContext();
-        Assert.Equal(10, await new BookingRepository(verification).CountActiveAsync(user.Id));
-        Assert.Equal(10, await verification.Events.SumAsync(e => e.AvailableSeats));
+        Assert.Equal(10, await new BookingRepository(verification).CountActiveAsync(userId));
     }
 }

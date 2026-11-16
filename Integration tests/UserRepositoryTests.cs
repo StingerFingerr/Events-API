@@ -1,10 +1,10 @@
-using Domain.Exceptions;
-using Domain.Models;
-using Infrastructure.Repositories.Users;
+using Users.Domain.Exceptions;
+using Users.Domain.Models;
+using Users.Infrastructure.Repositories.Users;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
-namespace Integration_tests;
+namespace Integration_tests.Users;
 
 [Collection(PostgreSqlCollection.Name)]
 public sealed class UserRepositoryTests(PostgreSqlFixture database) : RepositoryTestBase(database)
