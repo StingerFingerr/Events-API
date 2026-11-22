@@ -14,6 +14,7 @@ internal static class TestDatabase
         var services = new ServiceCollection();
 
         services.AddLogging();
+        services.AddSingleton(Moq.Mock.Of<Events.Application.Caching.ICacheService>());
         services.AddDbContext<EventsDbContext>(options => options.UseInMemoryDatabase(dbName));
         services.AddScoped<IEventService, EventsService>();
         services.AddScoped<IEventRepository, InMemoryEventRepository>();

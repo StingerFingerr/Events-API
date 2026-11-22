@@ -12,6 +12,10 @@ namespace Events.Presentation.Controllers;
 [Produces("application/json")]
 public class EventsController(IEventService eventService) : ControllerBase
 {
+    [HttpGet("top")]
+    [ProducesResponseType(typeof(List<EventDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetTopEvents() => Ok(await eventService.GetTopEvents());
+
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(EventDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]

@@ -6,6 +6,7 @@ namespace Events.Application.Services.Events;
 public interface IEventService
 {
     Task<EventDto> GetEventById(Guid id);
+    Task<List<EventDto>> GetTopEvents();
     Task<EventDto> CreateEvent(CreateEventDto eventData);
     Task<EventDto> UpdateEvent(Guid id, CreateEventDto eventData);
     Task<EventDto> UpdateEvent(Guid id, string newTitle);
