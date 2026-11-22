@@ -29,7 +29,7 @@ public class HeldSeatsMigrationTests(PostgreSqlFixture database) : RepositoryTes
         var item = await db.Events.SingleAsync();
         Assert.Equal(2, item.HeldSeats);
         Assert.Equal(4, item.AvailableSeats);
-        var handler = new ReservationSubscriber(new ReservationRepository(db), NullLogger<ReservationSubscriber>.Instance);
+        var handler = new ReservationSubscriber(new ReservationRepository(db), NullLogger<ReservationSubscriber>.Instance, new NullCacheService());
         await handler.Confirm(new BookingConfirmed(booking, eventId, Guid.NewGuid(), 2, DateTimeOffset.UtcNow), default);
         db.ChangeTracker.Clear();
         var confirmed = await db.Events.SingleAsync();

@@ -93,6 +93,7 @@ public class EventsService(IEventRepository eventRepository, ICacheService cache
             eventFound.EndAt = eventData.EndAt;
             eventFound.Description = eventData.Description;
             await eventRepository.SaveChangesAsync();
+            await cache.RemoveAsync($"event:{id}");
             return eventFound.AsDto();
         }
 
@@ -112,6 +113,7 @@ public class EventsService(IEventRepository eventRepository, ICacheService cache
         {
             eventFound.Title = newTitle;
             await eventRepository.SaveChangesAsync();
+            await cache.RemoveAsync($"event:{id}");
             return eventFound.AsDto();
         }
 
@@ -124,6 +126,7 @@ public class EventsService(IEventRepository eventRepository, ICacheService cache
         if (eventFound.HeldSeats > 0 || eventFound.AvailableSeats != eventFound.TotalSeats)
             throw new ConflictException("Cannot delete an event with reserved seats.");
         await eventRepository.RemoveAsync(eventFound);
+        await cache.RemoveAsync($"event:{id}");
     }
 
     public async Task<PaginatedResult<EventDto>> GetEventsByFilters(GetEventsByFiltersDto filters)

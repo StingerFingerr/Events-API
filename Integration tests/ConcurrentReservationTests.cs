@@ -39,7 +39,7 @@ public class ConcurrentReservationTests(PostgreSqlFixture database) : Repository
                 if (Interlocked.Increment(ref readers) == contenders) ready.SetResult();
                 await ready.Task.WaitAsync(TimeSpan.FromSeconds(15));
             }
-            var handler = new ReservationSubscriber(new ReservationRepository(db), NullLogger<ReservationSubscriber>.Instance);
+            var handler = new ReservationSubscriber(new ReservationRepository(db), NullLogger<ReservationSubscriber>.Instance, new NullCacheService());
             try
             {
                 if (directConfirmation)
