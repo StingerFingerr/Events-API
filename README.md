@@ -29,8 +29,16 @@ Kafka доступна как `localhost:9092` с хоста и `kafka:29092` и
 ## Кеширование событий (Redis)
 
 Application использует `ICacheService`, реализация `RedisCacheService` находится в Infrastructure.
-Строка подключения задаётся в `ConnectionStrings:Redis` сервиса Events (локально `localhost:6379`)
-или переменной окружения `ConnectionStrings__Redis`. Соединение переиспользуется как singleton.
+Строка подключения задаётся в `Redis:ConnectionString` сервиса Events (локально `localhost:6379`)
+или переменной окружения `Redis__ConnectionString`. Соединение переиспользуется как singleton.
+В Docker Compose Events получает `Redis__ConnectionString=redis:6379`; при локальном запуске
+используется `localhost:6379`. Redis опубликован только на loopback-адресе хоста и проверяется
+через `redis-cli ping`. Запуск Events не зависит от готовности Redis: при его недоступности работает БД.
+
+TTL задаются отдельно в `appsettings.json`: `Cache:EventTtlSeconds` для события и
+`Cache:Top10TtlSeconds` для рейтинга; по умолчанию оба равны 300 секундам.
+Переопределения окружения: `Cache__EventTtlSeconds` и `Cache__Top10TtlSeconds`.
+Нулевые и отрицательные TTL отклоняются при запуске. Изменение настроек требует перезапуска API.
 
 Используется Cache-Aside: сначала чтение из Redis, при промахе — из PostgreSQL с последующей записью в кеш.
 
@@ -73,14 +81,14 @@ docker compose up -d --build --wait
 docker compose ps
 ```
 
-Compose поднимает семь контейнеров: три API, три PostgreSQL и Kafka в режиме KRaft. Каждый API дожидается своей базы, а Events и Bookings также дожидаются Kafka. При первом запуске дождитесь применения миграций; откройте Swagger на портах 5101–5103. Для диагностики: `docker compose logs -f users-api events-api bookings-api`. Для остановки: `docker compose down`. Именованные тома сохраняют данные между запусками.
+Compose поднимает восемь контейнеров: три API, три PostgreSQL, Kafka в режиме KRaft и Redis. Каждый API дожидается своей базы, а Events и Bookings также дожидаются Kafka. При первом запуске дождитесь применения миграций; откройте Swagger на портах 5101–5103. Для диагностики: `docker compose logs -f users-api events-api bookings-api`. Для остановки: `docker compose down`. Именованные тома сохраняют данные между запусками.
 
 ## Запуск API без контейнеров
 
 Нужны .NET 10 SDK, Docker и файл `.env` из инструкции выше. Из корня репозитория:
 
 ```powershell
-docker compose up -d --wait users-db events-db bookings-db kafka
+docker compose up -d --wait users-db events-db bookings-db kafka redis
 dotnet build "Events API.sln"
 ```
 

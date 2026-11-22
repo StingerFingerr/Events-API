@@ -37,6 +37,7 @@ services:
     environment:
       <<: *api-environment
       ConnectionStrings__DefaultConnection: "Host=events-db;Port=5432;Database=events;Username=postgres;Password=postgres"
+      Redis__ConnectionString: "redis:6379"
       Kafka__BootstrapServers: kafka:29092
     depends_on:
       events-db:
@@ -61,6 +62,17 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: eventapi-redis
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   kafka:
     image: apache/kafka:3.9.1

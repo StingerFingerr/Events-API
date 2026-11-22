@@ -39,7 +39,7 @@ public class EventCacheInvalidationTests
         repository.Setup(x => x.RemoveAsync(item, default)).Returns(Save);
         cache.Setup(x => x.RemoveAsync($"event:{item.Id}"))
             .Callback(() => Assert.True(saved)).Returns(Task.CompletedTask);
-        var service = new EventsService(repository.Object, cache.Object);
+        var service = new EventsService(repository.Object, cache.Object, new Events.Application.Caching.CacheOptions());
         Task Act() => operation switch
         {
             "put" => service.UpdateEvent(item.Id, new CreateEventDto

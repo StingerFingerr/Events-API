@@ -18,7 +18,7 @@ public class EventTitleValidationTests
     {
         // Arrange
         var repository = new Mock<IEventRepository>(MockBehavior.Strict);
-        var service = new EventsService(repository.Object, Mock.Of<Events.Application.Caching.ICacheService>());
+        var service = new EventsService(repository.Object, Mock.Of<Events.Application.Caching.ICacheService>(), new Events.Application.Caching.CacheOptions());
 
         // Act
         var exception = await Assert.ThrowsAsync<ValidationException>(() => service.UpdateEvent(Guid.NewGuid(), title!));
@@ -34,7 +34,7 @@ public class EventTitleValidationTests
     {
         // Arrange
         var repository = new Mock<IEventRepository>(MockBehavior.Strict);
-        var service = new EventsService(repository.Object, Mock.Of<Events.Application.Caching.ICacheService>());
+        var service = new EventsService(repository.Object, Mock.Of<Events.Application.Caching.ICacheService>(), new Events.Application.Caching.CacheOptions());
         var dto = new CreateEventDto
         {
             Title = title!,
@@ -78,7 +78,7 @@ public class EventTitleValidationTests
         repository.Setup(r => r.ExistsByTitleAsync("abcde", It.IsAny<CancellationToken>())).ReturnsAsync(false);
         repository.Setup(r => r.GetByIdAsync(eventData.Id, It.IsAny<CancellationToken>())).ReturnsAsync(eventData);
         repository.Setup(r => r.SaveChangesAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
-        var service = new EventsService(repository.Object, Mock.Of<Events.Application.Caching.ICacheService>());
+        var service = new EventsService(repository.Object, Mock.Of<Events.Application.Caching.ICacheService>(), new Events.Application.Caching.CacheOptions());
 
         // Act
         var result = await service.UpdateEvent(eventData.Id, "abcde");

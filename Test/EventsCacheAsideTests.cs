@@ -20,6 +20,33 @@ namespace Test;
 
 public class EventsCacheAsideTests
 {
+    [Fact]
+    public async Task CacheMiss_UsesSeparateConfiguredTtls()
+    {
+        var item = CreateEvent();
+        repository.Setup(x => x.GetByIdAsync(item.Id, default)).ReturnsAsync(item);
+        repository.Setup(x => x.GetTopEventsAsync(default)).ReturnsAsync([item]);
+        var options = new CacheOptions { EventTtlSeconds = 45, Top10TtlSeconds = 120 };
+        var service = new EventsService(repository.Object, cache.Object, options);
+
+        await service.GetEventById(item.Id);
+        await service.GetTopEvents();
+
+        cache.Verify(x => x.SetAsync($"event:{item.Id}", It.IsAny<string>(), TimeSpan.FromSeconds(45)), Times.Once);
+        cache.Verify(x => x.SetAsync("events:top10", It.IsAny<string>(), TimeSpan.FromSeconds(120)), Times.Once);
+    }
+
+    [Theory]
+    [InlineData(0, 300)]
+    [InlineData(-1, 300)]
+    [InlineData(300, 0)]
+    [InlineData(300, -1)]
+    public void InvalidTtl_IsRejected(int eventTtl, int topTtl)
+    {
+        var options = new CacheOptions { EventTtlSeconds = eventTtl, Top10TtlSeconds = topTtl };
+        Assert.Throws<InvalidOperationException>(options.Validate);
+    }
+
     private readonly Mock<IEventRepository> repository = new(MockBehavior.Strict);
     private readonly Mock<ICacheService> cache = new();
 
@@ -38,7 +65,7 @@ public class EventsCacheAsideTests
         var dto = CreateEvent().AsDto();
         cache.Setup(x => x.GetAsync($"event:{dto.Id}")).ReturnsAsync(JsonSerializer.Serialize(dto));
 
-        Assert.Equal(dto, await new EventsService(repository.Object, cache.Object).GetEventById(dto.Id));
+        Assert.Equal(dto, await new EventsService(repository.Object, cache.Object, new Events.Application.Caching.CacheOptions()).GetEventById(dto.Id));
         repository.VerifyNoOtherCalls();
         cache.Verify(x => x.SetAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<TimeSpan>()), Times.Never);
     }
@@ -52,7 +79,7 @@ public class EventsCacheAsideTests
         var key = $"event:{item.Id}";
         cache.Setup(x => x.GetAsync(key)).ReturnsAsync(payload);
         repository.Setup(x => x.GetByIdAsync(item.Id, default)).ReturnsAsync(item);
-        var service = new EventsService(repository.Object, cache.Object);
+        var service = new EventsService(repository.Object, cache.Object, new Events.Application.Caching.CacheOptions());
 
         Assert.Equal(item.AsDto(), await service.GetEventById(item.Id));
         cache.Verify(x => x.SetAsync(key, JsonSerializer.Serialize(item.AsDto()), TimeSpan.FromMinutes(5)), Times.Once);
@@ -65,7 +92,7 @@ public class EventsCacheAsideTests
         repository.Setup(x => x.GetByIdAsync(id, default)).ReturnsAsync((Event?)null);
 
         await Assert.ThrowsAsync<NotFoundException>(() =>
-            new EventsService(repository.Object, cache.Object).GetEventById(id));
+            new EventsService(repository.Object, cache.Object, new Events.Application.Caching.CacheOptions()).GetEventById(id));
         cache.Verify(x => x.SetAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<TimeSpan>()), Times.Never);
     }
 
@@ -75,7 +102,7 @@ public class EventsCacheAsideTests
         var expected = new List<EventDto> { CreateEvent().AsDto() };
         cache.Setup(x => x.GetAsync("events:top10")).ReturnsAsync(JsonSerializer.Serialize(expected));
 
-        var result = await new EventsService(repository.Object, cache.Object).GetTopEvents();
+        var result = await new EventsService(repository.Object, cache.Object, new Events.Application.Caching.CacheOptions()).GetTopEvents();
 
         Assert.Equal(expected, result);
         repository.VerifyNoOtherCalls();
@@ -88,7 +115,7 @@ public class EventsCacheAsideTests
     {
         var items = empty ? new List<Event>() : new List<Event> { CreateEvent() };
         repository.Setup(x => x.GetTopEventsAsync(default)).ReturnsAsync(items);
-        var service = new EventsService(repository.Object, cache.Object);
+        var service = new EventsService(repository.Object, cache.Object, new Events.Application.Caching.CacheOptions());
 
         var result = await service.GetTopEvents();
 
@@ -108,7 +135,7 @@ public class EventsCacheAsideTests
             () => throw new RedisConnectionException(ConnectionFailureType.UnableToConnect,
                 CommandFlags.None, "Offline", null, CommandStatus.Unknown),
             NullLogger<RedisCacheService>.Instance);
-        var service = new EventsService(repository.Object, unavailableCache);
+        var service = new EventsService(repository.Object, unavailableCache, new Events.Application.Caching.CacheOptions());
 
         Assert.Equal(item.AsDto(), await service.GetEventById(item.Id));
         Assert.Equal(item.AsDto(), Assert.Single(await service.GetTopEvents()));

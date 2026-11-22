@@ -1,5 +1,6 @@
 using Events.Infrastructure.Messaging;
 using Events.Application;
+using Events.Application.Caching;
 using System.Text;
 using Events.Infrastructure.Auth;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -73,9 +74,14 @@ builder.Services.AddInfrastructure(
     builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("DefaultConnection is not configured."));
 
-var redisConnectionString = builder.Configuration.GetConnectionString("Redis");
+var cacheOptions = builder.Configuration.GetRequiredSection("Cache").Get<CacheOptions>()
+    ?? throw new InvalidOperationException("Cache settings are not configured.");
+cacheOptions.Validate();
+builder.Services.AddSingleton(cacheOptions);
+
+var redisConnectionString = builder.Configuration["Redis:ConnectionString"];
 if (string.IsNullOrWhiteSpace(redisConnectionString))
-    throw new InvalidOperationException("Redis connection string is not configured.");
+    throw new InvalidOperationException("Redis:ConnectionString is not configured.");
 builder.Services.AddRedisCache(redisConnectionString);
 
 builder.Host.UseDefaultServiceProvider((context, options) =>

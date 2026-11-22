@@ -11,9 +11,8 @@ using System.Text.Json;
 
 namespace Events.Application.Services.Events;
 
-public class EventsService(IEventRepository eventRepository, ICacheService cache) : IEventService
+public class EventsService(IEventRepository eventRepository, ICacheService cache, CacheOptions cacheOptions) : IEventService
 {
-    private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(5);
 
     public async Task<EventDto> GetEventById(Guid id)
     {
@@ -25,7 +24,7 @@ public class EventsService(IEventRepository eventRepository, ICacheService cache
         var eventData = await eventRepository.GetByIdAsync(id)
             ?? throw new NotFoundException(ErrorsMessages.EventNotFound);
         var result = eventData.AsDto();
-        await cache.SetAsync(key, JsonSerializer.Serialize(result), CacheTtl);
+        await cache.SetAsync(key, JsonSerializer.Serialize(result), TimeSpan.FromSeconds(cacheOptions.EventTtlSeconds));
         return result;
     }
 
@@ -38,7 +37,7 @@ public class EventsService(IEventRepository eventRepository, ICacheService cache
 
         var events = await eventRepository.GetTopEventsAsync();
         var result = events.Select(e => e.AsDto()).ToList();
-        await cache.SetAsync(key, JsonSerializer.Serialize(result), CacheTtl);
+        await cache.SetAsync(key, JsonSerializer.Serialize(result), TimeSpan.FromSeconds(cacheOptions.Top10TtlSeconds));
         return result;
     }
 
