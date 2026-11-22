@@ -8,6 +8,15 @@ namespace Events.Infrastructure.Repositories.Events;
 
 public class EventRepository(EventsDbContext context) : IEventRepository
 {
+    public Task<List<Event>> GetTopEventsAsync(CancellationToken cancellationToken = default) =>
+        context.Events.AsNoTracking()
+            .OrderByDescending(e => e.TotalSeats > 0
+                ? (double)(e.TotalSeats - e.AvailableSeats) / e.TotalSeats
+                : 0d)
+            .ThenBy(e => e.Id)
+            .Take(10)
+            .ToListAsync(cancellationToken);
+
     public async Task<Event?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
         await context.Events.FindAsync([id], cancellationToken);
 

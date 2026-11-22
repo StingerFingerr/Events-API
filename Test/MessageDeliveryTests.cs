@@ -20,7 +20,7 @@ public class MessageDeliveryTests
         db.Events.Add(item);
         await db.SaveChangesAsync();
         var handler = new ReservationSubscriber(new Events.Infrastructure.Repositories.Events.ReservationRepository(db),
-            Microsoft.Extensions.Logging.Abstractions.NullLogger<ReservationSubscriber>.Instance);
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<ReservationSubscriber>.Instance, Moq.Mock.Of<Events.Application.Caching.ICacheService>());
         var request = new ReserveSeats(Guid.NewGuid(), item.Id, 2);
         var cancel = new BookingCancelled(request.BookingId);
         var confirmation = new BookingConfirmed(request.BookingId, item.Id, Guid.NewGuid(), 2, DateTimeOffset.UtcNow);
@@ -51,7 +51,7 @@ public class MessageDeliveryTests
         db.Events.Add(item);
         await db.SaveChangesAsync();
         var handler = new ReservationSubscriber(new Events.Infrastructure.Repositories.Events.ReservationRepository(db),
-            Microsoft.Extensions.Logging.Abstractions.NullLogger<ReservationSubscriber>.Instance);
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<ReservationSubscriber>.Instance, Moq.Mock.Of<Events.Application.Caching.ICacheService>());
         var first = new ReserveSeats(Guid.NewGuid(), item.Id, 1);
         var next = first with { BookingId = Guid.NewGuid() };
         BookingConfirmed Confirm(ReserveSeats request) =>

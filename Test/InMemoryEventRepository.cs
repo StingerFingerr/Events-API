@@ -13,6 +13,9 @@ internal sealed class InMemoryEventRepository(EventsDbContext context) : IEventR
 {
     private readonly EventRepository _repository = new(context);
 
+    public Task<List<Event>> GetTopEventsAsync(CancellationToken cancellationToken = default) =>
+        _repository.GetTopEventsAsync(cancellationToken);
+
     public Task<Event?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
         _repository.GetByIdAsync(id, cancellationToken);
 

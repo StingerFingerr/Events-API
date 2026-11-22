@@ -2,10 +2,12 @@ using Contracts;
 using Microsoft.Extensions.Logging;
 using Events.Domain.Models;
 using Events.Application.Repositories.Events;
+using Events.Application.Caching;
 
 namespace Events.Application.Messaging;
 
-public sealed class ReservationSubscriber(IReservationRepository repository, ILogger<ReservationSubscriber> logger)
+public sealed class ReservationSubscriber(IReservationRepository repository, ILogger<ReservationSubscriber> logger,
+    ICacheService cache)
 {
     public async Task<ReservationDecision> Reserve(ReserveSeats message, CancellationToken ct)
     {
@@ -23,6 +25,8 @@ public sealed class ReservationSubscriber(IReservationRepository repository, ILo
             State = accepted ? ReservationState.Held : ReservationState.Rejected
         });
         await repository.Save(ct);
+        if (accepted)
+            await cache.RemoveAsync($"event:{message.EventId}");
         return new(accepted);
     }
 
@@ -52,10 +56,13 @@ public sealed class ReservationSubscriber(IReservationRepository repository, ILo
         else
             receipt.State = state;
         await repository.Save(ct);
+        if (accepted)
+            await cache.RemoveAsync($"event:{message.EventId}");
     }
 
     public async Task Cancel(BookingCancelled message, CancellationToken ct)
     {
+        Guid? changedEventId = null;
         var receipt = await repository.GetReceipt(message.BookingId, ct);
         if (receipt == null)
             repository.Add(new() { Id = message.BookingId, State = ReservationState.Cancelled });
@@ -67,9 +74,12 @@ public sealed class ReservationSubscriber(IReservationRepository repository, ILo
                 var item = await repository.GetEvent(receipt.EventId!.Value, ct);
                 if (receipt.State == ReservationState.Held) item?.ReleaseHold(receipt.SeatCount);
                 else item?.ReleaseSeats(receipt.SeatCount);
+                changedEventId = item?.Id;
             }
             receipt.State = ReservationState.Cancelled;
         }
         await repository.Save(ct);
+        if (changedEventId is { } eventId)
+            await cache.RemoveAsync($"event:{eventId}");
     }
 }

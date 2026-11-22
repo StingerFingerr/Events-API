@@ -5,6 +5,7 @@ namespace Events.Application.Repositories.Events;
 
 public interface IEventRepository
 {
+    Task<List<Event>> GetTopEventsAsync(CancellationToken cancellationToken = default);
     Task<Event?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Event?> GetByIdWithReloadAsync(Guid id, CancellationToken cancellationToken = default);
     Task<bool> ExistsByTitleAsync(string title, CancellationToken cancellationToken = default);

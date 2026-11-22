@@ -6,17 +6,57 @@ using Events.Application.DTOs.Events.Results;
 using Events.Domain.Exceptions;
 using Events.Domain.Models;
 using Events.Application.Repositories.Events;
+using Events.Application.Caching;
+using System.Text.Json;
 
 namespace Events.Application.Services.Events;
 
-public class EventsService(IEventRepository eventRepository) : IEventService
+public class EventsService(IEventRepository eventRepository, ICacheService cache, CacheOptions cacheOptions) : IEventService
 {
+
     public async Task<EventDto> GetEventById(Guid id)
     {
-        var eventData = await eventRepository.GetByIdAsync(id);
-        if (eventData is not null)
-            return eventData.AsDto();
-        throw new NotFoundException(ErrorsMessages.EventNotFound);
+        var key = $"event:{id}";
+        var cached = await ReadCacheAsync<EventDto>(key);
+        if (cached is not null)
+            return cached;
+
+        var eventData = await eventRepository.GetByIdAsync(id)
+            ?? throw new NotFoundException(ErrorsMessages.EventNotFound);
+        var result = eventData.AsDto();
+        await cache.SetAsync(key, JsonSerializer.Serialize(result), TimeSpan.FromSeconds(cacheOptions.EventTtlSeconds));
+        return result;
+    }
+
+    public async Task<List<EventDto>> GetTopEvents()
+    {
+        const string key = "events:top10";
+        var cached = await ReadCacheAsync<List<EventDto>>(key);
+        if (cached is not null)
+            return cached;
+
+        var events = await eventRepository.GetTopEventsAsync();
+        var result = events.Select(e => e.AsDto()).ToList();
+        await cache.SetAsync(key, JsonSerializer.Serialize(result), TimeSpan.FromSeconds(cacheOptions.Top10TtlSeconds));
+        return result;
+    }
+
+    private async Task<T?> ReadCacheAsync<T>(string key) where T : class
+    {
+        var value = await cache.GetAsync(key);
+        if (value is null)
+            return null;
+
+        try
+        {
+            return JsonSerializer.Deserialize<T>(value);
+        }
+        catch (JsonException)
+        {
+            // An invalid cached payload must not prevent reading the source of truth.
+            await cache.RemoveAsync(key);
+            return null;
+        }
     }
 
     public async Task<EventDto> CreateEvent(CreateEventDto eventData)
@@ -52,6 +92,7 @@ public class EventsService(IEventRepository eventRepository) : IEventService
             eventFound.EndAt = eventData.EndAt;
             eventFound.Description = eventData.Description;
             await eventRepository.SaveChangesAsync();
+            await cache.RemoveAsync($"event:{id}");
             return eventFound.AsDto();
         }
 
@@ -71,6 +112,7 @@ public class EventsService(IEventRepository eventRepository) : IEventService
         {
             eventFound.Title = newTitle;
             await eventRepository.SaveChangesAsync();
+            await cache.RemoveAsync($"event:{id}");
             return eventFound.AsDto();
         }
 
@@ -83,6 +125,7 @@ public class EventsService(IEventRepository eventRepository) : IEventService
         if (eventFound.HeldSeats > 0 || eventFound.AvailableSeats != eventFound.TotalSeats)
             throw new ConflictException("Cannot delete an event with reserved seats.");
         await eventRepository.RemoveAsync(eventFound);
+        await cache.RemoveAsync($"event:{id}");
     }
 
     public async Task<PaginatedResult<EventDto>> GetEventsByFilters(GetEventsByFiltersDto filters)
