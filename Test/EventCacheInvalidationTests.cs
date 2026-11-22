@@ -32,8 +32,10 @@ public class EventCacheInvalidationTests
         {
             "put" => service.UpdateEvent(item.Id, new CreateEventDto
             {
-                Title = "Updated concert", StartAt = item.StartAt,
-                EndAt = item.EndAt, TotalSeats = item.TotalSeats
+                Title = "Updated concert",
+                StartAt = item.StartAt,
+                EndAt = item.EndAt,
+                TotalSeats = item.TotalSeats
             }),
             "patch" => service.UpdateEvent(item.Id, "Updated concert"),
             _ => service.DeleteEvent(item.Id)
@@ -80,8 +82,11 @@ public class EventCacheInvalidationTests
         {
             "put" => service.UpdateEvent(item.Id, new CreateEventDto
             {
-                Title = "Updated concert", Description = item.Description,
-                StartAt = item.StartAt, EndAt = item.EndAt, TotalSeats = item.TotalSeats
+                Title = "Updated concert",
+                Description = item.Description,
+                StartAt = item.StartAt,
+                EndAt = item.EndAt,
+                TotalSeats = item.TotalSeats
             }),
             "patch" => service.UpdateEvent(item.Id, "Updated concert"),
             _ => service.DeleteEvent(item.Id)
@@ -118,7 +123,9 @@ public class EventCacheInvalidationTests
             else item.TryHoldSeats(2);
             repository.Setup(x => x.GetReceipt(bookingId, default)).ReturnsAsync(new SeatReservation
             {
-                Id = bookingId, EventId = item.Id, SeatCount = 2,
+                Id = bookingId,
+                EventId = item.Id,
+                SeatCount = 2,
                 State = confirmed ? ReservationState.Confirmed : ReservationState.Held
             });
         }
