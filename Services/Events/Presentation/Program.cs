@@ -10,7 +10,6 @@ using Events.Presentation.Extensions;
 using Events.Infrastructure;
 using Events.Presentation.Middlewares;
 using Microsoft.Extensions.Options;
-using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 // Shared defaults have lower priority than service settings, environment variables and command-line arguments.
@@ -77,8 +76,7 @@ builder.Services.AddInfrastructure(
 var redisConnectionString = builder.Configuration.GetConnectionString("Redis");
 if (string.IsNullOrWhiteSpace(redisConnectionString))
     throw new InvalidOperationException("Redis connection string is not configured.");
-builder.Services.AddSingleton<IConnectionMultiplexer>(_ =>
-    ConnectionMultiplexer.Connect(redisConnectionString));
+builder.Services.AddRedisCache(redisConnectionString);
 
 builder.Host.UseDefaultServiceProvider((context, options) =>
 {
