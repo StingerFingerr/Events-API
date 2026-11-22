@@ -12,6 +12,42 @@ namespace Test;
 
 public class EventCacheInvalidationTests
 {
+    [Theory]
+    [InlineData("put")]
+    [InlineData("patch")]
+    [InlineData("delete")]
+    public async Task Mutation_WaitsForDatabaseCommitBeforeInvalidatingCache(string operation)
+    {
+        var item = CreateEvent();
+        var repository = new Mock<IEventRepository>();
+        var cache = new Mock<ICacheService>(MockBehavior.Strict);
+        var saveCompleted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        repository.Setup(x => x.GetByIdAsync(item.Id, default)).ReturnsAsync(item);
+        repository.Setup(x => x.SaveChangesAsync(default)).Returns(saveCompleted.Task);
+        repository.Setup(x => x.RemoveAsync(item, default)).Returns(saveCompleted.Task);
+        cache.Setup(x => x.RemoveAsync($"event:{item.Id}")).Returns(Task.CompletedTask);
+        var service = new EventsService(repository.Object, cache.Object, new CacheOptions());
+
+        Task mutation = operation switch
+        {
+            "put" => service.UpdateEvent(item.Id, new CreateEventDto
+            {
+                Title = "Updated concert", StartAt = item.StartAt,
+                EndAt = item.EndAt, TotalSeats = item.TotalSeats
+            }),
+            "patch" => service.UpdateEvent(item.Id, "Updated concert"),
+            _ => service.DeleteEvent(item.Id)
+        };
+
+        Assert.False(mutation.IsCompleted);
+        cache.VerifyNoOtherCalls();
+        saveCompleted.SetResult();
+        await mutation.WaitAsync(TimeSpan.FromSeconds(5));
+
+        cache.Verify(x => x.RemoveAsync($"event:{item.Id}"), Times.Once);
+        cache.VerifyNoOtherCalls();
+    }
+
     private static Event CreateEvent() => Event.Create(Guid.NewGuid(), "Concert",
         DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(2), 10);
 

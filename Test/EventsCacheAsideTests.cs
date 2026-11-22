@@ -82,6 +82,8 @@ public class EventsCacheAsideTests
         var service = new EventsService(repository.Object, cache.Object, new Events.Application.Caching.CacheOptions());
 
         Assert.Equal(item.AsDto(), await service.GetEventById(item.Id));
+        repository.Verify(x => x.GetByIdAsync(item.Id, default), Times.Once);
+        repository.VerifyNoOtherCalls();
         cache.Verify(x => x.SetAsync(key, JsonSerializer.Serialize(item.AsDto()), TimeSpan.FromMinutes(5)), Times.Once);
     }
 
@@ -96,16 +98,20 @@ public class EventsCacheAsideTests
         cache.Verify(x => x.SetAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<TimeSpan>()), Times.Never);
     }
 
-    [Fact]
-    public async Task Top_CacheHitDoesNotReadDatabase()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Top_CacheHitDoesNotReadDatabase(bool empty)
     {
-        var expected = new List<EventDto> { CreateEvent().AsDto() };
+        var expected = empty ? new List<EventDto>() : new List<EventDto> { CreateEvent().AsDto() };
         cache.Setup(x => x.GetAsync("events:top10")).ReturnsAsync(JsonSerializer.Serialize(expected));
 
         var result = await new EventsService(repository.Object, cache.Object, new Events.Application.Caching.CacheOptions()).GetTopEvents();
 
         Assert.Equal(expected, result);
         repository.VerifyNoOtherCalls();
+        cache.Verify(x => x.GetAsync("events:top10"), Times.Once);
+        cache.VerifyNoOtherCalls();
     }
 
     [Theory]
@@ -120,9 +126,46 @@ public class EventsCacheAsideTests
         var result = await service.GetTopEvents();
 
         Assert.Equal(items.Select(x => x.AsDto()), result);
+        repository.Verify(x => x.GetTopEventsAsync(default), Times.Once);
+        repository.VerifyNoOtherCalls();
         cache.Verify(x => x.SetAsync("events:top10", JsonSerializer.Serialize(result), TimeSpan.FromMinutes(5)), Times.Once);
         var controller = new EventsController(service);
         Assert.IsType<List<EventDto>>(Assert.IsType<OkObjectResult>(await controller.GetTopEvents()).Value);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task FirstRead_PopulatesCache_SecondReadDoesNotCallRepository(bool top)
+    {
+        var item = CreateEvent();
+        var key = top ? "events:top10" : $"event:{item.Id}";
+        string? stored = null;
+        cache.Setup(x => x.GetAsync(key)).ReturnsAsync(() => stored);
+        cache.Setup(x => x.SetAsync(key, It.IsAny<string>(), It.IsAny<TimeSpan>()))
+            .Callback<string, string, TimeSpan>((_, value, _) => stored = value)
+            .Returns(Task.CompletedTask);
+        if (top)
+            repository.Setup(x => x.GetTopEventsAsync(default)).ReturnsAsync([item]);
+        else
+            repository.Setup(x => x.GetByIdAsync(item.Id, default)).ReturnsAsync(item);
+        var service = new EventsService(repository.Object, cache.Object, new CacheOptions());
+
+        if (top)
+        {
+            Assert.Equal(await service.GetTopEvents(), await service.GetTopEvents());
+            repository.Verify(x => x.GetTopEventsAsync(default), Times.Once);
+        }
+        else
+        {
+            Assert.Equal(await service.GetEventById(item.Id), await service.GetEventById(item.Id));
+            repository.Verify(x => x.GetByIdAsync(item.Id, default), Times.Once);
+        }
+
+        repository.VerifyNoOtherCalls();
+        cache.Verify(x => x.GetAsync(key), Times.Exactly(2));
+        cache.Verify(x => x.SetAsync(key, It.IsAny<string>(), TimeSpan.FromMinutes(5)), Times.Once);
+        cache.VerifyNoOtherCalls();
     }
 
     [Fact]
